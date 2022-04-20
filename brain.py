@@ -1,18 +1,26 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[187]:
+ #Libraries
+from scipy.io import loadmat
+import numpy as np
 
+import sklearn as sk
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+from matplotlib.pyplot import figure
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import KFold
+from sklearn.cluster import KMeans
+from sklearn.svm import LinearSVC
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+import warnings
+warnings.filterwarnings('ignore')
 
 class model:
-
-  def calcPCA(data):
-    pca = PCA(n_components=20)
-    X_pca = pca.fit_transform(data)
-    #eVal = pca.explained_variance_
-    #PCA_df = pd.DataFrame(data = X_pca, columns = ['PC1', 'PC2', 'PC3', 'PC4', 'PC5', 'PC6', 'PC7', 'PC8', 'PC9', 'PC10', 'PC11', 'PC12', 'PC13', 'PC14', 'PC15', 'PC16', 'PC17', 'PC18', 'PC19', 'PC20'])
-    #return PCA_df.to_numpy()
-    return X_pca
 
   def logReg(X_train, X_test, y_train, y_test):
     logReg = LogisticRegression().fit(X_train,y_train)
@@ -57,11 +65,6 @@ class base:
         return X,Y
 
 
-
-
-# In[188]:
-
-
 class feature:
 
     sampling_freq = 160.0
@@ -82,10 +85,10 @@ class feature:
 
         plt.plot(frequency, power_spectrum)
 
-
-
-# In[189]:
-
+    def calcPCA(data):
+        pca = PCA(n_components=20)
+        X_pca = pca.fit_transform(data)
+        return X_pca
 
 class preprocess:
 
@@ -104,30 +107,7 @@ class preprocess:
 
         plt.plot(time, filtered_signal)
 
-
-
-# In[190]:
-
-
 def main():
-    #Libraries
-    from scipy.io import loadmat
-    import numpy as np
-
-    import sklearn as sk
-    from sklearn.decomposition import PCA
-    import matplotlib.pyplot as plt
-    from matplotlib.pyplot import figure
-    from sklearn.preprocessing import LabelEncoder
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.model_selection import KFold
-    from sklearn.cluster import KMeans
-    from sklearn.svm import LinearSVC
-    from sklearn.model_selection import train_test_split
-    from sklearn.metrics import accuracy_score
-    import warnings
-    warnings.filterwarnings('ignore')
 
 
     #Read data
@@ -159,8 +139,8 @@ def main():
     #Pass an int for reproducible output across multiple function calls
 
     # PCA on training and testdata
-    PCA_train = model.calcPCA(X_train)
-    PCA_test = model.calcPCA(X_test)
+    PCA_train = feature.calcPCA(X_train)
+    PCA_test = feature.calcPCA(X_test)
 
     # Log Reg
     print("Log Reg: ", model.logReg(PCA_train, PCA_test, y_train, y_test)) #PCA
@@ -170,16 +150,6 @@ def main():
 
     # SVM
     print("SVM: ", model.SVM(PCA_train, PCA_test, y_train, y_test)) #PCA
-
-
-
-
-
-
-
-
-
-# In[191]:
 
 
 if __name__ == "__main__":

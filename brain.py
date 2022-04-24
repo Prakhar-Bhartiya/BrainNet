@@ -17,6 +17,8 @@ from sklearn.cluster import KMeans
 from sklearn.svm import LinearSVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+import tensorflow as tf
+
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -25,7 +27,7 @@ class model:
   def logReg(X_train, X_test, y_train, y_test):
     logReg = LogisticRegression().fit(X_train,y_train)
     logTest = logReg.score(X_test, y_test)
-    return logTest
+    return logReg, logTest
 
   def kMeans(X_train, X_test, y_train, y_test):
     kmeans = KMeans(init="k-means++", n_clusters=2, n_init=10, max_iter=300)
@@ -33,12 +35,12 @@ class model:
     labels1 = kmeans.labels_
     kmeansTest = kmeans.predict(X_test)
     accuracy = accuracy_score(y_test, kmeansTest)
-    return accuracy
+    return kmeans, accuracy
 
   def SVM(X_train, X_test, y_train, y_test):
     svm = LinearSVC(max_iter=30000).fit(X_train,y_train)
     svmTest = svm.score(X_test, y_test)
-    return svmTest
+    return svm, svmTest
 
 
 class base:
@@ -143,13 +145,16 @@ def main():
     PCA_test = feature.calcPCA(X_test)
 
     # Log Reg
-    print("Log Reg: ", model.logReg(PCA_train, PCA_test, y_train, y_test)) #PCA
+    logRegPCA, logTestPCA = model.logReg(PCA_train, PCA_test, y_train, y_test) #PCA
+    print("Log Reg PCA: ", logTestPCA)
 
     #K-Means
-    print("KMeans: ", model.kMeans(PCA_train, PCA_test, y_train, y_test)) #PCA
+    kMeansPCA, kTestPCA = model.kMeans(PCA_train, PCA_test, y_train, y_test) #PCA
+    print("KMeans PCA: ", kTestPCA)
 
     # SVM
-    print("SVM: ", model.SVM(PCA_train, PCA_test, y_train, y_test)) #PCA
+    svmPCA, svmTestPCA = model.SVM(PCA_train, PCA_test, y_train, y_test) #PCA
+    print("SVM PCA: ", svmTestPCA)
 
 
 if __name__ == "__main__":

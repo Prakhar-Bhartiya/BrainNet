@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="features_array">
+        <item>Coiflets DWT</item>
+        <item>Delta Band FT</item>
+        <item>Theta Band FT</item>
+        <item>Alpha Band FT</item>
+        <item>Beta Band FT</item>
+        <item>Gamma Band FT</item>
+        <item>PSD</item>
+        <item>PCA</item>
+    </string-array>
+</resources>

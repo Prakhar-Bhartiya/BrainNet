@@ -17,30 +17,33 @@ from sklearn.cluster import KMeans
 from sklearn.svm import LinearSVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-import tensorflow as tf
-
-import warnings
-warnings.filterwarnings('ignore')
+# import warnings
+# warnings.filterwarnings('ignore')
 
 class model:
 
   def logReg(X_train, X_test, y_train, y_test):
     logReg = LogisticRegression().fit(X_train,y_train)
-    logTest = logReg.score(X_test, y_test)
-    return logReg, logTest
+    y_pred = logReg.predict(X_test)
+    #logTest = logReg.score(X_test, y_test)
+    return logReg, y_pred
 
   def kMeans(X_train, X_test, y_train, y_test):
     kmeans = KMeans(init="k-means++", n_clusters=2, n_init=10, max_iter=300)
     kmeans.fit(X_train)
-    labels1 = kmeans.labels_
-    kmeansTest = kmeans.predict(X_test)
-    accuracy = accuracy_score(y_test, kmeansTest)
-    return kmeans, accuracy
+    #labels1 = kmeans.labels_
+    y_pred = kmeans.predict(X_test)
+    alter_y_pred = 1-y_pred
+    if base.accuracy(y_test,y_pred) < base.accuracy(y_test, alter_y_pred):
+        y_pred = alter_y_pred
+
+    return kmeans, y_pred
 
   def SVM(X_train, X_test, y_train, y_test):
     svm = LinearSVC(max_iter=30000).fit(X_train,y_train)
-    svmTest = svm.score(X_test, y_test)
-    return svm, svmTest
+    y_pred = svm.predict(X_test)
+    #svmTest = svm.score(X_test, y_test)
+    return svm, y_pred
 
 
 class base:
@@ -66,9 +69,59 @@ class base:
 
         return X,Y
 
+    def accuracy(y_true, y_pred):
+        from sklearn.metrics import accuracy_score
+        return accuracy_score(y_true, y_pred)
+
+    def report(y_true, y_pred):
+        from sklearn.metrics import confusion_matrix
+        TN, FP, FN, TP = confusion_matrix(y_true, y_pred).ravel()
+
+        #https://en.wikipedia.org/wiki/Confusion_matrix
+
+        #senstivity | recall | hit_rate | True_positive_rate
+        TPR = TP/(TP+FN)
+
+        #specificity | selectivity | True_negative_rate
+        TNR = TN/(TN+FP)
+
+        #precision | Positive_predective_value
+        precision = TP/(TP+FP)
+
+        #Miss_rate | False_negative_rate | false_reject_rate
+        FNR = FN/(FN+TP)
+
+        #Fall_out | False_positive_rate | false_accept_Rate
+        FPR = FP/(FP+TN)
+
+        #accuracy
+        ACC = (TP+TN)/(TP+TN+FP+FN)
+
+        #error_rate
+        ERROR = (FP+FN)/(TP+TN+FP+FN)
+
+        #F1-score
+        F1 = 2*TP / (2*TP + FP + FN)
+
+        #http://publications.idiap.ch/downloads/reports/2005/bengio_2005_icml.pdf
+        #half_total_error_rate
+        HTER = (FPR+FNR)/2
+
+        print("TPR: ",TPR)
+        print("TNR: ",TNR)
+        print("precision: ",precision)
+        print("FNR: ",FNR)
+        print("FPR: ",FPR)
+        print("ACC: ",ACC)
+        print("ERROR: ",ERROR)
+        print("F1: ",F1)
+        print("HTER: ",HTER)
+
+
+
 
 class feature:
-
+    #5 features
     sampling_freq = 160.0
 
     def power_spectrum_plot(data, duration):
@@ -98,12 +151,16 @@ class preprocess:
 
     def filter_band(data, duration):
         #high pass and low pass filter
+        #https://www.daanmichiels.com/blog/2017/10/filtering-eeg-signals-using-scipy/
+        #https://youtu.be/uNNNj9AZisM
+        """frequency bands are delta band (0–4 Hz), theta band (3.5–7.5 Hz), alpha band (7.5–13 Hz), beta band (13–26 Hz), and gamma band (26–70 Hz)"""
+
         sampling_freq = 160.0
         time = np.arange(0.0, duration, 1/sampling_freq)
         low_freq = 0.5 #0.1 Hz
-        high_freq = 2.0 #60 Hz
+        high_freq = 60.0 #60 Hz
 
-        filter = signal.firwin(401, [low_freq, high_freq], pass_zero=False,fs=sampling_freq)
+        filter = signal.firwin(401, [low_freq, high_freq], pass_zero=False,fs=sampling_freq) #fs == fixed sampling frequency
 
         filtered_signal = signal.convolve(data, filter, mode='same')
 
@@ -145,16 +202,36 @@ def main():
     PCA_test = feature.calcPCA(X_test)
 
     # Log Reg
-    logRegPCA, logTestPCA = model.logReg(PCA_train, PCA_test, y_train, y_test) #PCA
-    print("Log Reg PCA: ", logTestPCA)
+    print("Log Reg: ") #PCA
+    print("==========================================================")
+    logReg, y_pred = model.logReg(PCA_train, PCA_test, y_train, y_test)
+    print("Report")
+    print("----------------------------------------------------------")
+    base.report(y_test, y_pred)
+    print("----------------------------------------------------------")
+
+    print("\n")
 
     #K-Means
-    kMeansPCA, kTestPCA = model.kMeans(PCA_train, PCA_test, y_train, y_test) #PCA
-    print("KMeans PCA: ", kTestPCA)
+    print("KMeans: ") #PCA
+    print("==========================================================")
+    kmeans, y_pred =  model.kMeans(PCA_train, PCA_test, y_train, y_test)
+    print("Report")
+    print("----------------------------------------------------------")
+    base.report(y_test, y_pred)
+    print("----------------------------------------------------------")
+
+    print("\n")
 
     # SVM
-    svmPCA, svmTestPCA = model.SVM(PCA_train, PCA_test, y_train, y_test) #PCA
-    print("SVM PCA: ", svmTestPCA)
+    print("SVM: ") #PCA
+    print("==========================================================")
+    svm, y_pred = model.SVM(PCA_train, PCA_test, y_train, y_test)
+    print("Report")
+    print("----------------------------------------------------------")
+    base.report(y_test, y_pred)
+    print("----------------------------------------------------------")
+
 
 
 if __name__ == "__main__":

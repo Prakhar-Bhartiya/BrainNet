@@ -141,65 +141,70 @@ class feature:
     def delta_band(data):
         #https://dsp.stackexchange.com/questions/45345/how-to-correctly-compute-the-eeg-frequency-bands-with-python
         fs = 165  # Sampling rate
+        fft_vals = np.absolute(np.fft.rfft(data))
         # Get frequencies for amplitudes in Hz
         fft_freq = np.fft.rfftfreq(len(data), 1.0 / fs)
         """Delta Band Values"""
         low_freq = 0
         high_freq = 4
 
-        freqs = fft_freq[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
+        freqs = fft_vals[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
                            (fft_freq <= high_freq))]
         return freqs
 
     def theta_band(data):
         #https://dsp.stackexchange.com/questions/45345/how-to-correctly-compute-the-eeg-frequency-bands-with-python
         fs = 165  # Sampling rate
+        fft_vals = np.absolute(np.fft.rfft(data))
         # Get frequencies for amplitudes in Hz
         fft_freq = np.fft.rfftfreq(len(data), 1.0 / fs)
         """Theta Band Values"""
         low_freq = 4
         high_freq = 8
 
-        freqs = fft_freq[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
+        freqs = fft_vals[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
                            (fft_freq <= high_freq))]
         return freqs
 
     def alpha_band(data):
         #https://dsp.stackexchange.com/questions/45345/how-to-correctly-compute-the-eeg-frequency-bands-with-python
         fs = 165  # Sampling rate
+        fft_vals = np.absolute(np.fft.rfft(data))
         # Get frequencies for amplitudes in Hz
         fft_freq = np.fft.rfftfreq(len(data), 1.0 / fs)
         """Alpha Band Values"""
         low_freq = 8
         high_freq = 12
 
-        freqs = fft_freq[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
+        freqs = fft_vals[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
                            (fft_freq <= high_freq))]
         return freqs
 
     def beta_band(data):
         #https://dsp.stackexchange.com/questions/45345/how-to-correctly-compute-the-eeg-frequency-bands-with-python
         fs = 165  # Sampling rate
+        fft_vals = np.absolute(np.fft.rfft(data))
         # Get frequencies for amplitudes in Hz
         fft_freq = np.fft.rfftfreq(len(data), 1.0 / fs)
         """Beta Band Values"""
         low_freq = 12
         high_freq = 30
 
-        freqs = fft_freq[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
+        freqs = fft_vals[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
                            (fft_freq <= high_freq))]
         return freqs
 
     def gamma_band(data):
         #https://dsp.stackexchange.com/questions/45345/how-to-correctly-compute-the-eeg-frequency-bands-with-python
         fs = 165  # Sampling rate
+        fft_vals = np.absolute(np.fft.rfft(data))
         # Get frequencies for amplitudes in Hz
         fft_freq = np.fft.rfftfreq(len(data), 1.0 / fs)
         """Gamma Band Values"""
         low_freq = 30
         high_freq = 45
 
-        freqs = fft_freq[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
+        freqs = fft_vals[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
                            (fft_freq <= high_freq))]
         return freqs
 
@@ -257,6 +262,7 @@ class training:
 
         print("Log Reg: ")
         logReg, y_pred = model.logReg(X_train, X_test, y_train, y_test)
+        # print(y_pred)
         pickle.dump(logReg, open(feature + '_logReg.pkl', 'wb'))
         print("==========================================================")
         print("Accuracy: ",base.accuracy(y_pred, y_test))
@@ -269,6 +275,7 @@ class training:
 
         print("K-Means: ")
         kmeans, y_pred =  model.kMeans(X_train, X_test, y_train, y_test)
+        # print(y_pred)
         pickle.dump(logReg, open(feature + '_kmeans.pkl', 'wb'))
         print("==========================================================")
         print("Accuracy: ",base.accuracy(y_pred, y_test))
@@ -280,6 +287,7 @@ class training:
         print("\n")
 
         svm, y_pred = model.SVM(X_train, X_test, y_train, y_test)
+        # print(y_pred)
         pickle.dump(logReg, open(feature + '_svm.pkl', 'wb'))
         print("SVM: ")
         print("==========================================================")
@@ -292,6 +300,7 @@ class training:
         print("\n")
 
         print("KNN: ")
+        # print(y_pred)
         knn, y_pred = model.KNN(X_train, X_test, y_train, y_test)
         pickle.dump(logReg, open(feature + '_knn.pkl', 'wb'))
         print("==========================================================")
@@ -341,9 +350,6 @@ class training:
         #For PCA
         pca = feature.calcPCA(X)
         training.trainModels(pca, Y, "PCA")
-
-
-        
 
 
 def main():

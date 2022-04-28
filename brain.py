@@ -18,9 +18,13 @@ from sklearn.cluster import KMeans
 from sklearn.svm import LinearSVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
 from scipy import signal
-# import warnings
-# warnings.filterwarnings('ignore')
+import pickle
+import pywt # pip insyall PyWavelets
+
+import warnings
+warnings.filterwarnings('ignore')
 
 class base:
     def plot_data(data,duration):
@@ -138,65 +142,70 @@ class feature:
     def delta_band(data):
         #https://dsp.stackexchange.com/questions/45345/how-to-correctly-compute-the-eeg-frequency-bands-with-python
         fs = 165  # Sampling rate
+        fft_vals = np.absolute(np.fft.rfft(data))
         # Get frequencies for amplitudes in Hz
         fft_freq = np.fft.rfftfreq(len(data), 1.0 / fs)
         """Delta Band Values"""
         low_freq = 0
         high_freq = 4
 
-        freqs = fft_freq[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
+        freqs = fft_vals[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
                            (fft_freq <= high_freq))]
         return freqs
 
     def theta_band(data):
         #https://dsp.stackexchange.com/questions/45345/how-to-correctly-compute-the-eeg-frequency-bands-with-python
         fs = 165  # Sampling rate
+        fft_vals = np.absolute(np.fft.rfft(data))
         # Get frequencies for amplitudes in Hz
         fft_freq = np.fft.rfftfreq(len(data), 1.0 / fs)
         """Theta Band Values"""
         low_freq = 4
         high_freq = 8
 
-        freqs = fft_freq[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
+        freqs = fft_vals[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
                            (fft_freq <= high_freq))]
         return freqs
 
     def alpha_band(data):
         #https://dsp.stackexchange.com/questions/45345/how-to-correctly-compute-the-eeg-frequency-bands-with-python
         fs = 165  # Sampling rate
+        fft_vals = np.absolute(np.fft.rfft(data))
         # Get frequencies for amplitudes in Hz
         fft_freq = np.fft.rfftfreq(len(data), 1.0 / fs)
         """Alpha Band Values"""
         low_freq = 8
         high_freq = 12
 
-        freqs = fft_freq[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
+        freqs = fft_vals[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
                            (fft_freq <= high_freq))]
         return freqs
 
     def beta_band(data):
         #https://dsp.stackexchange.com/questions/45345/how-to-correctly-compute-the-eeg-frequency-bands-with-python
         fs = 165  # Sampling rate
+        fft_vals = np.absolute(np.fft.rfft(data))
         # Get frequencies for amplitudes in Hz
         fft_freq = np.fft.rfftfreq(len(data), 1.0 / fs)
         """Beta Band Values"""
         low_freq = 12
         high_freq = 30
 
-        freqs = fft_freq[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
+        freqs = fft_vals[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
                            (fft_freq <= high_freq))]
         return freqs
 
     def gamma_band(data):
         #https://dsp.stackexchange.com/questions/45345/how-to-correctly-compute-the-eeg-frequency-bands-with-python
         fs = 165  # Sampling rate
+        fft_vals = np.absolute(np.fft.rfft(data))
         # Get frequencies for amplitudes in Hz
         fft_freq = np.fft.rfftfreq(len(data), 1.0 / fs)
         """Gamma Band Values"""
         low_freq = 30
         high_freq = 45
 
-        freqs = fft_freq[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
+        freqs = fft_vals[np.where((fft_freq >= low_freq) &   #np.where is like asking "tell me where in this array, entries satisfy a given condition".
                            (fft_freq <= high_freq))]
         return freqs
 
@@ -217,14 +226,22 @@ class feature:
         X_pca = pca.fit_transform(data)
         return X_pca
 
+<<<<<<< HEAD
     # http://wavelets.pybytes.com/family/coif/
+=======
+    def coiflets(data):
+        #https://pywavelets.readthedocs.io/en/0.2.2/ref/dwt-discrete-wavelet-transform.html
+        #approximation (cA) and detail (cD) coefficients
+        ca, cd = pywt.dwt(data, 'coif1')
+        return ca
+>>>>>>> fae0a892333184a273bac57aa4e5c01d17415eff
 
 class model:
     def logReg(X_train, X_test, y_train, y_test):
         logReg = LogisticRegression().fit(X_train,y_train)
         y_pred = logReg.predict(X_test)
-        #logTest = logReg.score(X_test, y_test)
-        return y_pred
+        # logTest = logReg.score(X_test, y_test)
+        return logReg, y_pred
     def kMeans(X_train, X_test, y_train, y_test):
         kmeans = KMeans(init="k-means++", n_clusters=2, n_init=10, max_iter=300)
         kmeans.fit(X_train)
@@ -234,19 +251,121 @@ class model:
         if base.accuracy(y_test,y_pred) < base.accuracy(y_test, alter_y_pred):
             y_pred = alter_y_pred
 
-        return y_pred
+        return kmeans, y_pred
     def SVM(X_train, X_test, y_train, y_test):
 
         svm = LinearSVC(max_iter=30000).fit(X_train,y_train)
         y_pred = svm.predict(X_test)
         #svmTest = svm.score(X_test, y_test)
-        return y_pred
+        return svm, y_pred
 
     def KNN(X_train, X_test, y_train, y_test):
         knn = KNeighborsClassifier() #Euclidean distance
         knn.fit(X_train, y_train)
         y_pred = knn.predict(X_test)
-        return y_pred
+        return knn, y_pred
+
+class training:
+    def trainModels(X, Y, feature, save=False):
+        print("\n***********************************   ", feature, "   ***********************************\n")
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.30, random_state=42)
+
+        print("Log Reg: ")
+        logReg, y_pred = model.logReg(X_train, X_test, y_train, y_test)
+        print("==========================================================")
+        print("Accuracy: ",base.accuracy(y_pred, y_test))
+        print("Report")
+        print("----------------------------------------------------------")
+        base.report(y_pred, y_test)
+        print("----------------------------------------------------------")
+
+        print("\n")
+
+        print("K-Means: ")
+        kmeans, y_pred =  model.kMeans(X_train, X_test, y_train, y_test)
+        print("==========================================================")
+        print("Accuracy: ",base.accuracy(y_pred, y_test))
+        print("Report")
+        print("----------------------------------------------------------")
+        base.report(y_pred, y_test)
+        print("----------------------------------------------------------")
+
+        print("\n")
+
+        svm, y_pred = model.SVM(X_train, X_test, y_train, y_test)
+        print("SVM: ")
+        print("==========================================================")
+        print("Accuracy: ",base.accuracy(y_pred, y_test))
+        print("Report")
+        print("----------------------------------------------------------")
+        base.report(y_pred, y_test)
+        print("----------------------------------------------------------")
+
+        print("\n")
+
+        print("KNN: ")
+        knn, y_pred = model.KNN(X_train, X_test, y_train, y_test)
+        print("==========================================================")
+        print("Accuracy: ",base.accuracy(y_pred, y_test))
+        print("Report")
+        print("----------------------------------------------------------")
+        base.report(y_pred, y_test)
+        print("----------------------------------------------------------")
+
+        if(save):
+            pickle.dump(logReg, open(feature + '_logReg.pkl', 'wb'))
+            pickle.dump(logReg, open(feature + '_kmeans.pkl', 'wb'))
+            pickle.dump(logReg, open(feature + '_svm.pkl', 'wb'))
+            pickle.dump(logReg, open(feature + '_knn.pkl', 'wb'))
+
+
+
+
+    def getModels(X, Y, save=False):
+        """"Preprocessing"""
+        #Filter data within 0.1 - 60Hz
+        filtered_X = base.apply_all(preprocess.filter_band,X)
+
+        #Scalar around means
+        scaled_X = preprocess.standard_scalar(filtered_X)
+
+
+        """Feature Extraction"""
+        #For Bands and PSD
+        #feature_X = X
+
+        #For Alpha
+        alpha = base.apply_all(feature.alpha_band, scaled_X)
+        training.trainModels(alpha, Y, "alpha", save)
+
+        #For Beta
+        beta  = base.apply_all(feature.beta_band, scaled_X)
+        training.trainModels(beta, Y, "beta", save)
+
+        #For Delta
+        delta  = base.apply_all(feature.delta_band, scaled_X)
+        training.trainModels(delta, Y, "delta", save)
+
+        #For Gamma
+        # gamma = base.apply_all(feature.gamma_band, scaled_X)
+        # trainModels(gamma, Y, "gamma", save)
+
+        #For Theta
+        # theta  = base.apply_all(feature.theta_band, scaled_X)
+        # trainModels(theta, Y, "theta", save)
+
+        #For Power Density
+        powerDensity  = base.apply_all(feature.power_spectral_density, scaled_X)
+        training.trainModels(powerDensity, Y, "PD", save)
+
+        #For PCA
+        pca = feature.calcPCA(X)
+        training.trainModels(pca, Y, "PCA", save)
+
+        #For Coiflet Family
+        coif = feature.coiflets(X)
+        training.trainModels(coif, Y, "coif", save)
 
 
 def main():
@@ -274,78 +393,11 @@ def main():
     print(X.shape)
     print(Y.shape)
 
-    """"Preprocessing"""
-    #Filter data within 0.1 - 60Hz
-    filtered_X = base.apply_all(preprocess.filter_band,X)
-
-    #Scalar around means
-    scaled_X = preprocess.standard_scalar(filtered_X)
-
-
-    """Feature Extraction"""
-    #For Bands and PSD
-    #feature_X = X
-    feature_X  = base.apply_all(feature.beta_band, scaled_X)
-
-    #For PCA
-    #feature_X = feature.calcPCA(X)
-
-
-    print(feature_X.shape)
-
-
     """Model training"""
-    #Divide data into train and test
-    from sklearn.model_selection import train_test_split
-    X_train, X_test, y_train, y_test = train_test_split(feature_X, Y, test_size=0.30, random_state=42)
-    #Pass an int for reproducible output across multiple function calls
 
+    training.getModels(X, Y)
+    
 
-    # Log Reg
-    print("Log Reg: ") #PCA
-    print("==========================================================")
-    y_pred = model.logReg(X_train, X_test, y_train, y_test)
-    print("Accuracy: ",base.accuracy(y_pred, y_test))
-    print("Report")
-    print("----------------------------------------------------------")
-    base.report(y_pred, y_test)
-    print("----------------------------------------------------------")
-
-    print("\n")
-
-    #K-Means
-    print("KMeans: ") #PCA
-    print("==========================================================")
-    y_pred =  model.kMeans(X_train, X_test, y_train, y_test)
-    print("Accuracy: ",base.accuracy(y_pred, y_test))
-    print("Report")
-    print("----------------------------------------------------------")
-    base.report(y_pred, y_test)
-    print("----------------------------------------------------------")
-
-    print("\n")
-
-    # SVM
-    print("SVM: ") #PCA
-    print("==========================================================")
-    y_pred = model.SVM(X_train, X_test, y_train, y_test)
-    print("Accuracy: ",base.accuracy(y_pred, y_test))
-    print("Report")
-    print("----------------------------------------------------------")
-    base.report(y_pred, y_test)
-    print("----------------------------------------------------------")
-
-    print("\n")
-
-    # SVM
-    print("KNN: ") #PCA
-    print("==========================================================")
-    y_pred = model.KNN(X_train, X_test, y_train, y_test)
-    print("Accuracy: ",base.accuracy(y_pred, y_test))
-    print("Report")
-    print("----------------------------------------------------------")
-    base.report(y_pred, y_test)
-    print("----------------------------------------------------------")
 
 if __name__ == "__main__":
     main()

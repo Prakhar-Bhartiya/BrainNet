@@ -217,6 +217,8 @@ class feature:
         X_pca = pca.fit_transform(data)
         return X_pca
 
+    # http://wavelets.pybytes.com/family/coif/
+
 class model:
     def logReg(X_train, X_test, y_train, y_test):
         logReg = LogisticRegression().fit(X_train,y_train)

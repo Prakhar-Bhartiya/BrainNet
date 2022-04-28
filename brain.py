@@ -21,6 +21,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from scipy import signal
 import pickle
+import pywt # pip insyall PyWavelets
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -225,6 +226,12 @@ class feature:
         X_pca = pca.fit_transform(data)
         return X_pca
 
+    def coiflets(data):
+        #https://pywavelets.readthedocs.io/en/0.2.2/ref/dwt-discrete-wavelet-transform.html
+        #approximation (cA) and detail (cD) coefficients
+        ca, cd = pywt.dwt(data, 'coif1')
+        return ca
+
 class model:
     def logReg(X_train, X_test, y_train, y_test):
         logReg = LogisticRegression().fit(X_train,y_train)
@@ -255,15 +262,13 @@ class model:
         return knn, y_pred
 
 class training:
-    def trainModels(X, Y, feature):
+    def trainModels(X, Y, feature, save=False):
         print("\n***********************************   ", feature, "   ***********************************\n")
         # Split data
         X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.30, random_state=42)
 
         print("Log Reg: ")
         logReg, y_pred = model.logReg(X_train, X_test, y_train, y_test)
-        # print(y_pred)
-        pickle.dump(logReg, open(feature + '_logReg.pkl', 'wb'))
         print("==========================================================")
         print("Accuracy: ",base.accuracy(y_pred, y_test))
         print("Report")
@@ -275,8 +280,6 @@ class training:
 
         print("K-Means: ")
         kmeans, y_pred =  model.kMeans(X_train, X_test, y_train, y_test)
-        # print(y_pred)
-        pickle.dump(logReg, open(feature + '_kmeans.pkl', 'wb'))
         print("==========================================================")
         print("Accuracy: ",base.accuracy(y_pred, y_test))
         print("Report")
@@ -287,8 +290,6 @@ class training:
         print("\n")
 
         svm, y_pred = model.SVM(X_train, X_test, y_train, y_test)
-        # print(y_pred)
-        pickle.dump(logReg, open(feature + '_svm.pkl', 'wb'))
         print("SVM: ")
         print("==========================================================")
         print("Accuracy: ",base.accuracy(y_pred, y_test))
@@ -300,9 +301,7 @@ class training:
         print("\n")
 
         print("KNN: ")
-        # print(y_pred)
         knn, y_pred = model.KNN(X_train, X_test, y_train, y_test)
-        pickle.dump(logReg, open(feature + '_knn.pkl', 'wb'))
         print("==========================================================")
         print("Accuracy: ",base.accuracy(y_pred, y_test))
         print("Report")
@@ -310,7 +309,16 @@ class training:
         base.report(y_pred, y_test)
         print("----------------------------------------------------------")
 
-    def getModels(X, Y):
+        if(save):
+            pickle.dump(logReg, open(feature + '_logReg.pkl', 'wb'))
+            pickle.dump(logReg, open(feature + '_kmeans.pkl', 'wb'))
+            pickle.dump(logReg, open(feature + '_svm.pkl', 'wb'))
+            pickle.dump(logReg, open(feature + '_knn.pkl', 'wb'))
+
+
+
+
+    def getModels(X, Y, save=False):
         """"Preprocessing"""
         #Filter data within 0.1 - 60Hz
         filtered_X = base.apply_all(preprocess.filter_band,X)
@@ -325,31 +333,35 @@ class training:
 
         #For Alpha
         alpha = base.apply_all(feature.alpha_band, scaled_X)
-        training.trainModels(alpha, Y, "alpha")
+        training.trainModels(alpha, Y, "alpha", save)
 
         #For Beta
         beta  = base.apply_all(feature.beta_band, scaled_X)
-        training.trainModels(beta, Y, "beta")
+        training.trainModels(beta, Y, "beta", save)
 
         #For Delta
         delta  = base.apply_all(feature.delta_band, scaled_X)
-        training.trainModels(delta, Y, "delta")
+        training.trainModels(delta, Y, "delta", save)
 
         #For Gamma
         # gamma = base.apply_all(feature.gamma_band, scaled_X)
-        # trainModels(gamma, Y, "gamma")
+        # trainModels(gamma, Y, "gamma", save)
 
         #For Theta
         # theta  = base.apply_all(feature.theta_band, scaled_X)
-        # trainModels(theta, Y, "theta")
+        # trainModels(theta, Y, "theta", save)
 
         #For Power Density
         powerDensity  = base.apply_all(feature.power_spectral_density, scaled_X)
-        training.trainModels(powerDensity, Y, "PD")
+        training.trainModels(powerDensity, Y, "PD", save)
 
         #For PCA
         pca = feature.calcPCA(X)
-        training.trainModels(pca, Y, "PCA")
+        training.trainModels(pca, Y, "PCA", save)
+
+        #For Coiflet Family
+        coif = feature.coiflets(X)
+        training.trainModels(coif, Y, "coif", save)
 
 
 def main():
@@ -380,6 +392,7 @@ def main():
     """Model training"""
 
     training.getModels(X, Y)
+    
 
 
 if __name__ == "__main__":

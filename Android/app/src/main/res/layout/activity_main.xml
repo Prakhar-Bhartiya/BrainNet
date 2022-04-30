@@ -15,7 +15,7 @@
         android:layout_marginStart="20dp"
         android:layout_marginTop="20dp"
         android:ems="10"
-        android:hint="ex. 1-106"
+        android:hint="ex. 0-105"
         android:inputType="textPersonName"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -24,20 +24,20 @@
         android:id="@+id/btnFetchUsers"
         android:layout_width="136dp"
         android:layout_height="48dp"
-        android:layout_marginStart="12dp"
+        android:layout_marginStart="16dp"
         android:layout_marginTop="20dp"
         android:text="Fetch User(s)"
         app:layout_constraintStart_toEndOf="@+id/editTextUsers"
         app:layout_constraintTop_toTopOf="parent" />
 
     <Button
-        android:id="@+id/btnSelectFeature"
-        android:layout_width="wrap_content"
+        android:id="@+id/btnFetchAttack"
+        android:layout_width="136dp"
         android:layout_height="48dp"
         android:layout_marginStart="12dp"
-        android:layout_marginTop="20dp"
-        android:text="Select Feature"
-        app:layout_constraintStart_toEndOf="@+id/spinnerFeatures"
+        android:layout_marginTop="12dp"
+        android:text="Fetch Attack"
+        app:layout_constraintStart_toEndOf="@+id/spinnerAttack"
         app:layout_constraintTop_toBottomOf="@+id/editTextUsers" />
 
     <Button
@@ -45,7 +45,7 @@
         android:layout_width="357dp"
         android:layout_height="48dp"
         android:layout_marginStart="20dp"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="12dp"
         android:text="Run Models"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/spinnerFeatures" />
@@ -121,8 +121,27 @@
         android:layout_width="208dp"
         android:layout_height="48dp"
         android:layout_marginStart="20dp"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="12dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/spinnerAttack" />
+
+    <Spinner
+        android:id="@+id/spinnerAttack"
+        android:layout_width="208dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="12dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/editTextUsers" />
+
+    <Button
+        android:id="@+id/btnSelectFeature"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="12dp"
+        android:text="Select Feature"
+        app:layout_constraintStart_toEndOf="@+id/spinnerFeatures"
+        app:layout_constraintTop_toBottomOf="@+id/spinnerAttack" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

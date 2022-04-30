@@ -21,6 +21,10 @@ android {
         python {
             pip {
                 install "matplotlib"
+                install "pywavelets"
+                install "scipy"
+                install "scikit-learn"
+                install "numpy"
             }
         }
     }

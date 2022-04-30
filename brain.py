@@ -29,7 +29,7 @@ from keras.layers import Input, Dense, Reshape, Flatten, Dropout, Conv2DTranspos
 from keras.layers import BatchNormalization, Activation, ZeroPadding2D
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.convolutional import UpSampling2D, Conv2D
-from keras.models import Sequential, Model, save_model
+from keras.models import Sequential, Model, save_model, load_model
 from keras.optimizers import adam_v2
 from keras.optimizers import rmsprop_v2
 from keras.metrics import Mean
@@ -38,6 +38,7 @@ from keras import losses
 import tensorflow as tf
 
 import warnings
+import timeit
 
 from torch import conv1d
 warnings.filterwarnings('ignore')
@@ -415,16 +416,41 @@ def main():
     #training.getModels(X, Y)
 
     """GAN training"""
+    #start = timeit.timeit()
     #gan = GAN()
     #gan.train(epochs=128*2, adv_train=X, batch_size=5, sample_interval=200)
-
+    #end = timeit.timeit()
+    #print("Time elapsed for generating GAN: ", (end - start))
     """VAE training"""
+    #start = timeit.timeit()
     #encoder = buildEncoder()
     #decoder = buildDecoder(latent_dim = 2)
     # need to split train and test data: 70, 30
     #x_train = np.concatenate((X[0:890], X[1272:2608]))
+    #y_train = np.concatenate((Y[0:890], Y[1272:2608]))
     #x_test = np.concatenate((X[890:1272], X[2608:]))
-    #trainVAE(encoder, decoder, x_train, x_test)
+    #trainVAE(encoder, decoder, x_train, x_test, y_train)
+    #end = timeit.timeit()
+    #print("Time elapsed for generating VAE: ", (end - start))
+    """Generate Signal with GAN and VAE"""
+    #exit()
+    gan = load_model("./GANSavedModel")
+    vaeencoder = load_model("./VAEEncoderSavedModel")
+    vaedecoder = load_model("./VAEDecoderSavedModel")
+    #start = timeit.timeit()
+    noise = np.random.normal(0, 1, (1, 10000))
+    attack_vector1 = gan.predict(noise)
+    #end = timeit.timeit()
+    #print("Time elapsed for generating attack vector with GAN: ", (end - start))
+    #attack_vector2 = vaeencoder.predict(0)
+    #Generation range near x: -10 to 0 y: -12 to -5
+    #start = timeit.timeit()
+    attack_vector2 = vaedecoder.predict(np.array([[-5, -6]]))
+    #end = timeit.timeit()
+    #print("Time elapsed for generating attack vector with VAE: ", (end - start))
+    print(attack_vector2.shape)
+    print(attack_vector1.shape)
+    #vaeencoder.z_sample = np.array([[0, 0]])
     
 # Adapted from https://towardsdatascience.com/gan-by-example-using-keras-on-tensorflow-backend-1a6d515a60d0
 # and https://github.com/eriklindernoren/Keras-GAN/blob/master/gan/gan.py
@@ -544,8 +570,8 @@ class GAN():
         print(X_train.shape)
 
         # Adversarial ground truths
-        valid = np.ones((batch_size, 1))
-        fake = np.zeros((batch_size, 1))
+        valid = np.zeros((batch_size, 1))
+        fake = np.ones((batch_size, 1))
 
         for epoch in range(epochs):
 
@@ -582,7 +608,7 @@ class GAN():
             # Plot the progress
             print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
 
-        save_model(self.combined, "./GANSavedModel", overwrite= True)
+        save_model(self.generator, "./GANSavedModel", overwrite= True)
 
 # Adapted from https://keras.io/examples/generative/vae/
 class VAE(Model):
@@ -606,6 +632,7 @@ class VAE(Model):
         with GradientTape() as tape:
             z_mean, z_log_var, z = self.encoder(data)
             print("data shape: %s", data.shape)
+            print("z: %s", z)
             reconstruction = self.decoder(z)
             print("reconstruction shape: %s", reconstruction.shape)
             reconstruction_loss = tf.reduce_mean(
@@ -636,6 +663,16 @@ class Sampling(Layer):
         epsilon = tf.keras.backend.random_normal(shape=(batch, dim))
         return z_mean + tf.exp(0.5 * z_log_var) * epsilon
 
+def plot_label_clusters(vae, data, labels):
+    # display a 2D plot of the digit classes in the latent space
+    z_mean, _, _ = vae.encoder.predict(data)
+    plt.figure(figsize=(12, 10))
+    plt.scatter(z_mean[:, 0], z_mean[:, 1], c=labels)
+    plt.colorbar()
+    plt.xlabel("z[0]")
+    plt.ylabel("z[1]")
+    plt.show()
+
 def buildEncoder():
     latent_dim = 2
 
@@ -664,15 +701,16 @@ def buildDecoder(latent_dim):
     decoder.summary()
     return decoder
 
-def trainVAE(encoder, decoder, x_train, x_test):
+def trainVAE(encoder, decoder, x_train, x_test, y_train):
     data_resized = np.concatenate([x_train, x_test], axis=0)
     data_resized = np.expand_dims(data_resized, -1).astype("float32") / 65535
     print("SHAPE OF DATA: %s", data_resized.shape)
     vae = VAE(encoder, decoder)
     vae.compile(optimizer=adam_v2.Adam())
     vae.fit(data_resized, epochs=1, batch_size=5)
+    plot_label_clusters(vae, x_train, y_train)
     save_model(vae.encoder, "./VAEEncoderSavedModel", overwrite=True)
-    save_model(vae.encoder, "./VAEDecoderSavedModel", overwrite=True)
+    save_model(vae.decoder, "./VAEDecoderSavedModel", overwrite=True)
 
 
 

@@ -393,6 +393,37 @@ class training:
         pred = loaded_model.predict(sample)
         return pred
 
+    def runSample(subject, attack, feat):
+        # subject 0-105
+        # attack -1-5
+        # feat: 'PCA', 'alpha', 'beta', 'delta', 'PD', 'coif'
+        if(feat == 'PCA'):
+            pca = pickle.load(open('pca.pkl','rb'))
+            data = base.get_subject(subject,attack).reshape(1, -1)
+            sample = pca.transform(data)
+        else:
+            sc = pickle.load(open('scaler.pkl','rb'))
+            data = base.get_subject(subject,attack)
+            filtered = preprocess.filter_band(data)
+            scaled_X = sc.transform(filtered.reshape(1, -1)).reshape(4800, )
+            if(feat == 'alpha'):
+                sample = feature.alpha_band(scaled_X).reshape(1, -1)
+            if(feat == 'delta'):
+                sample = feature.delta_band(scaled_X).reshape(1, -1)
+            if(feat == 'beta'):
+                sample = feature.beta_band(scaled_X).reshape(1, -1)
+            if(feat == 'PD'):
+                sample = feature.power_spectral_density(scaled_X).reshape(1, -1)
+            if(feat == 'coif'):
+                sample = feature.coiflets(scaled_X).reshape(1, -1)
+
+        y_pred1 = training.test(sample, feat+"_logReg")[0]
+        y_pred2 = training.test(sample, feat+"_kmeans")[0]
+        y_pred3 = training.test(sample, feat+"_svm")[0]
+        y_pred4 = training.test(sample, feat+"_knn")[0]
+
+        return y_pred1, y_pred2, y_pred3, y_pred4
+
 
 def main():
 
@@ -426,22 +457,8 @@ def main():
     # training.getModels(X, Y)
 
     """Testing on one sample"""    
-    
-    # Example for coiflets, bands, and PD: 
-    sc = pickle.load(open('scaler.pkl','rb'))
-    data = base.get_subject(10,-1)
-    filtered = preprocess.filter_band(data)
-    scaled_X = sc.transform(filtered.reshape(1, -1))
-    sample = feature.coiflets(scaled_X)
-    model = "coif_svm"
-    print(training.test(sample, model))
 
-    # Example for PCA :
-    pca = pickle.load(open('pca.pkl','rb'))
-    data = base.get_subject(10,1).reshape(1, -1)
-    sample = pca.transform(data)
-    model = "PCA_svm"
-    print(training.test(sample, model))
+    print(training.runSample(10,-1, 'PCA'))
 
 
 if __name__ == "__main__":

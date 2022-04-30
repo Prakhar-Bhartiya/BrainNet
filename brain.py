@@ -2,6 +2,7 @@
 # coding: utf-8
 
  #Libraries
+from __future__ import print_function, division
 from scipy.io import loadmat
 import numpy as np
 
@@ -23,7 +24,22 @@ from scipy import signal
 import pickle
 import pywt # pip insyall PyWavelets
 
+from keras.datasets import mnist
+from keras.layers import Input, Dense, Reshape, Flatten, Dropout, Conv2DTranspose, Layer, ReLU
+from keras.layers import BatchNormalization, Activation, ZeroPadding2D
+from keras.layers.advanced_activations import LeakyReLU
+from keras.layers.convolutional import UpSampling2D, Conv2D
+from keras.models import Sequential, Model, save_model
+from keras.optimizers import adam_v2
+from keras.optimizers import rmsprop_v2
+from keras.metrics import Mean
+from tensorflow import GradientTape
+from keras import losses
+import tensorflow as tf
+
 import warnings
+
+from torch import conv1d
 warnings.filterwarnings('ignore')
 
 class base:
@@ -48,10 +64,15 @@ class base:
         input_ = base.segment_data(input_data,segment_time)
         attack_ = base.segment_data(attack_data,segment_time)
 
+        print(input_.shape)
+
         X = np.concatenate((input_,attack_))
+
+        #print(X.shape)
+
         Y = np.concatenate((np.zeros(input_.shape[0]),np.ones(attack_.shape[0]))) #normal = 0, attack = 1
 
-        return X,Y
+        return X,Y, input_
 
     def accuracy(y_pred, y_true):
         from sklearn.metrics import accuracy_score
@@ -384,15 +405,275 @@ def main():
     print("Attack data shape: ", attack_data.shape)
 
     #Combine all data
-    X,Y = base.form_data(input_data,attack_data)
+    X,Y, adv_train = base.form_data(input_data,attack_data)
 
-    print(X.shape)
-    print(Y.shape)
+    print("X Shape %s ", X.shape)
+    print("^ Shape %s", Y.shape)
 
     """Model training"""
 
-    training.getModels(X, Y)
+    #training.getModels(X, Y)
+
+    """GAN training"""
+    #gan = GAN()
+    #gan.train(epochs=128*2, adv_train=X, batch_size=5, sample_interval=200)
+
+    """VAE training"""
+    #encoder = buildEncoder()
+    #decoder = buildDecoder(latent_dim = 2)
+    # need to split train and test data: 70, 30
+    #x_train = np.concatenate((X[0:890], X[1272:2608]))
+    #x_test = np.concatenate((X[890:1272], X[2608:]))
+    #trainVAE(encoder, decoder, x_train, x_test)
     
+# Adapted from https://towardsdatascience.com/gan-by-example-using-keras-on-tensorflow-backend-1a6d515a60d0
+# and https://github.com/eriklindernoren/Keras-GAN/blob/master/gan/gan.py
+class GAN():
+    def __init__(self):
+        self.img_rows = 1
+        self.img_cols = 4800
+        self.channels = 1
+        self.img_shape = ( self.img_cols, self.channels)
+        self.latent_dim = 10000
+
+        #optimizer = rmsprop_v2.RMSProp(0.0002)
+        optimizer = adam_v2.Adam(0.0002, 0.5)
+
+        # Build and compile the discriminator
+        self.discriminator = self.build_discriminator()
+        self.discriminator.compile(loss='binary_crossentropy',
+            optimizer=optimizer,
+            metrics=['accuracy'])
+
+        # Build the generator
+        self.generator = self.build_generator()
+
+        # The generator takes noise as input and generates imgs
+        z = Input(shape=(self.latent_dim,))
+        img = self.generator(z)
+
+        # For the combined model we will only train the generator
+        self.discriminator.trainable = False
+
+        # The discriminator takes generated images as input and determines validity
+        validity = self.discriminator(img)
+
+        # The combined model  (stacked generator and discriminator)
+        # Trains the generator to fool the discriminator
+        self.combined = Model(z, validity)
+        self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
+
+
+    def build_generator(self):
+
+        model = Sequential()
+
+        model.add(Dense(16, input_dim=self.latent_dim))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.4))
+        model.add(Dense(32))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.4))
+        model.add(Dense(64))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.4))
+        model.add(Dense(128))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.4))
+        model.add(Dense(256))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.4))
+        #model.add(BatchNormalization(momentum=0.9))
+        model.add(Dense(512))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.4))
+        #model.add(BatchNormalization(momentum=0.9))
+        model.add(Dropout(0.4))
+        model.add(Dense(1024))
+        model.add(LeakyReLU(alpha=0.2))
+        #model.add(Dropout(0.4))
+        #model.add(BatchNormalization(momentum=0.9))
+        model.add(Dropout(0.4))
+        model.add(Dense(np.prod(self.img_shape), activation='softsign'))
+        model.add(Reshape(self.img_shape))
+
+        model.summary()
+
+        noise = Input(shape=(self.latent_dim,))
+        img = model(noise)
+
+        return Model(noise, img)
+
+    def build_discriminator(self):
+
+        model = Sequential()
+
+        model.add(Flatten(input_shape=self.img_shape))
+        model.add(Dense(512))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.4))
+        model.add(Dense(256))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.4))
+        model.add(Dense(1, activation='sigmoid'))
+        model.summary()
+
+        img = Input(shape=self.img_shape)
+        validity = model(img)
+
+        return Model(img, validity)
+
+    def train(self, epochs, adv_train, batch_size=5, sample_interval=50):
+
+        # Load the dataset
+        X_train = adv_train
+        print(X_train.shape)
+        print(X_train[0][0])
+        print(type(X_train[0][0]))
+
+        # Rescale -1 to 1
+        max = np.absolute(np.max(X_train))
+        min = np.absolute(np.min(X_train))
+        print(max)
+        print(min)
+        max = np.max([np.absolute(np.max(X_train)), np.absolute(np.min(X_train))])
+        X_train = X_train / (max/2)
+        print(X_train.shape)
+        print(X_train[0][0])
+        X_train = np.expand_dims(X_train, axis=2)
+        print(X_train.shape)
+
+        # Adversarial ground truths
+        valid = np.ones((batch_size, 1))
+        fake = np.zeros((batch_size, 1))
+
+        for epoch in range(epochs):
+
+            # ---------------------
+            #  Train Discriminator
+            # ---------------------
+
+            # Select a random batch of images
+            idx = np.random.randint(0, X_train.shape[0], batch_size)
+            imgs = X_train[idx]
+            #print(idx)
+
+            noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
+
+            # Generate a batch of new images
+            gen_imgs = self.generator.predict(noise)
+
+            # Train the discriminator
+            d_loss_real = self.discriminator.train_on_batch(imgs, valid)
+            #print("real: %s",d_loss_real)
+            d_loss_fake = self.discriminator.train_on_batch(gen_imgs, fake)
+            #print("fake: %s", d_loss_fake)
+            d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
+
+            # ---------------------
+            #  Train Generator
+            # ---------------------
+
+            noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
+
+            # Train the generator (to have the discriminator label samples as valid)
+            g_loss = self.combined.train_on_batch(noise, valid)
+
+            # Plot the progress
+            print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+
+        save_model(self.combined, "./GANSavedModel", overwrite= True)
+
+# Adapted from https://keras.io/examples/generative/vae/
+class VAE(Model):
+    def __init__(self, encoder, decoder, **kwargs):
+        super(VAE, self).__init__(**kwargs)
+        self.encoder = encoder
+        self.decoder = decoder
+        self.total_loss_tracker = Mean(name="total_loss")
+        self.reconstruction_loss_tracker = Mean(name="reconstruction_loss")
+        self.kl_loss_tracker = Mean(name="kl_loss")
+
+    @property
+    def metrics(self):
+        return [
+            self.total_loss_tracker,
+            self.reconstruction_loss_tracker,
+            self.kl_loss_tracker,
+        ]
+
+    def train_step(self, data):
+        with GradientTape() as tape:
+            z_mean, z_log_var, z = self.encoder(data)
+            print("data shape: %s", data.shape)
+            reconstruction = self.decoder(z)
+            print("reconstruction shape: %s", reconstruction.shape)
+            reconstruction_loss = tf.reduce_mean(
+                #tf.reduce_sum(
+                    losses.binary_crossentropy(data, reconstruction)#, axis=(1, 2)
+                #)
+            )
+            kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
+            kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
+            total_loss = reconstruction_loss + kl_loss
+        grads = tape.gradient(total_loss, self.trainable_weights)
+        self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
+        self.total_loss_tracker.update_state(total_loss)
+        self.reconstruction_loss_tracker.update_state(reconstruction_loss)
+        self.kl_loss_tracker.update_state(kl_loss)
+        return {
+            "loss": self.total_loss_tracker.result(),
+            "reconstruction_loss": self.reconstruction_loss_tracker.result(),
+            "kl_loss": self.kl_loss_tracker.result(),
+        }
+class Sampling(Layer):
+    """Uses (z_mean, z_log_var) to sample z, the vector encoding a digit."""
+
+    def call(self, inputs):
+        z_mean, z_log_var = inputs
+        batch = tf.shape(z_mean)[0]
+        dim = tf.shape(z_mean)[1]
+        epsilon = tf.keras.backend.random_normal(shape=(batch, dim))
+        return z_mean + tf.exp(0.5 * z_log_var) * epsilon
+
+def buildEncoder():
+    latent_dim = 2
+
+    encoder_inputs = Input(shape=(4800, 1))
+    #x = Conv(32, 2, activation="relu", strides=2, padding="same")(encoder_inputs)
+    #x = conv1d(64, 2, activation="relu", strides=2, padding="same")(x)
+    x = Dense(32, activation="relu")(encoder_inputs)#ReLU()(encoder_inputs)
+    x = Dense(64, activation="relu")(x)#ReLU()(x)
+    x = Flatten()(x)
+    x = Dense(16, activation="relu")(x)
+    z_mean = Dense(latent_dim, name="z_mean")(x)
+    z_log_var = Dense(latent_dim, name="z_log_var")(x)
+    z = Sampling()([z_mean, z_log_var])
+    encoder = Model(encoder_inputs, [z_mean, z_log_var, z], name="encoder")
+    encoder.summary()
+    return encoder
+
+def buildDecoder(latent_dim):
+    latent_inputs = Input(shape=(latent_dim,))
+    x = Flatten()(latent_inputs)
+    x = Dense(64, activation="relu")(x)#Conv2DTranspose(64, 2, activation="relu", strides=2, padding="same")(x)
+    x = Dense(32, activation="relu")(x)#Conv2DTranspose(32, 2, activation="relu", strides=2, padding="same")(x)
+    x = Dense(np.prod((4800,1)), activation='sigmoid')(x)
+    decoder_outputs = Reshape((4800,1))(x)#Dense(1, activation="sigmoid")(x)
+    decoder = Model(latent_inputs, decoder_outputs, name="decoder")
+    decoder.summary()
+    return decoder
+
+def trainVAE(encoder, decoder, x_train, x_test):
+    data_resized = np.concatenate([x_train, x_test], axis=0)
+    data_resized = np.expand_dims(data_resized, -1).astype("float32") / 65535
+    print("SHAPE OF DATA: %s", data_resized.shape)
+    vae = VAE(encoder, decoder)
+    vae.compile(optimizer=adam_v2.Adam())
+    vae.fit(data_resized, epochs=1, batch_size=5)
+    save_model(vae.encoder, "./VAEEncoderSavedModel", overwrite=True)
+    save_model(vae.encoder, "./VAEDecoderSavedModel", overwrite=True)
+
 
 
 if __name__ == "__main__":

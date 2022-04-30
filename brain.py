@@ -393,17 +393,19 @@ class training:
         pred = loaded_model.predict(sample)
         return pred
 
-    def runSample(subject, attack, feat):
+    def runSample(subject=0, attack=-1, feat='PCA', data = []):
         # subject 0-105
         # attack -1-5
         # feat: 'PCA', 'alpha', 'beta', 'delta', 'PD', 'coif'
+        if(data==[]):
+            data = base.get_subject(subject,attack)
         if(feat == 'PCA'):
             pca = pickle.load(open('pca.pkl','rb'))
-            data = base.get_subject(subject,attack).reshape(1, -1)
+            data = data.reshape(1, -1)
             sample = pca.transform(data)
         else:
             sc = pickle.load(open('scaler.pkl','rb'))
-            data = base.get_subject(subject,attack)
+            # data = base.get_subject(subject,attack)
             filtered = preprocess.filter_band(data)
             scaled_X = sc.transform(filtered.reshape(1, -1)).reshape(4800, )
             if(feat == 'alpha'):
@@ -423,6 +425,7 @@ class training:
         y_pred4 = training.test(sample, feat+"_knn")[0]
 
         return y_pred1, y_pred2, y_pred3, y_pred4
+
 
 
 def main():
@@ -450,7 +453,9 @@ def main():
     print(X.shape)
     print(Y.shape)
 
-    # pca2 = feature.calcPCA(X)
+    """ Generated Attacks """
+    g_attack = loadmat('GeneratedAttackVector.mat')
+    g_attack = g_attack['attackVectors']
 
     """Model training"""
 
@@ -458,7 +463,10 @@ def main():
 
     """Testing on one sample"""    
 
-    print(training.runSample(10,-1, 'PCA'))
+    # sample from provided data
+    print(training.runSample(0,-1, 'alpha'))
+    # sample from generated data
+    print(training.runSample(feat='alpha', data=g_attack[0]))
 
 
 if __name__ == "__main__":

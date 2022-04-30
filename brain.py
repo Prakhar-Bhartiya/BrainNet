@@ -53,6 +53,18 @@ class base:
 
         return X,Y
 
+    def get_subject(subject, attack, data):
+        # subject is int 0-105
+        # attack = -1 for real data, else 0-5
+        attackStart = 1271 # 106 * 12 - 1
+        if(attack == -1):
+            # each subject in the real data has 12 rows
+            # 4 sets of 30 sec intervals * 3 samples
+            return data[subject * 12] # return the first 30 sec of the first sample
+        else:
+            # each attack has 106 subjects * 1 set of 30 sec of data * 3 samples
+            return data[attackStart + attack*106 + subject*3]
+
     def accuracy(y_pred, y_true):
         from sklearn.metrics import accuracy_score
         return accuracy_score(y_true, y_pred)
@@ -226,15 +238,11 @@ class feature:
         X_pca = pca.fit_transform(data)
         return X_pca
 
-<<<<<<< HEAD
-    # http://wavelets.pybytes.com/family/coif/
-=======
     def coiflets(data):
         #https://pywavelets.readthedocs.io/en/0.2.2/ref/dwt-discrete-wavelet-transform.html
         #approximation (cA) and detail (cD) coefficients
         ca, cd = pywt.dwt(data, 'coif1')
         return ca
->>>>>>> fae0a892333184a273bac57aa4e5c01d17415eff
 
 class model:
     def logReg(X_train, X_test, y_train, y_test):
@@ -319,9 +327,6 @@ class training:
             pickle.dump(logReg, open(feature + '_svm.pkl', 'wb'))
             pickle.dump(logReg, open(feature + '_knn.pkl', 'wb'))
 
-
-
-
     def getModels(X, Y, save=False):
         """"Preprocessing"""
         #Filter data within 0.1 - 60Hz
@@ -364,8 +369,13 @@ class training:
         training.trainModels(pca, Y, "PCA", save)
 
         #For Coiflet Family
-        coif = feature.coiflets(X)
+        coif = feature.coiflets(scaled_X)
         training.trainModels(coif, Y, "coif", save)
+
+    def test(sample, name):
+        loaded_model = pickle.load(open(name + '.pkl', 'rb'))
+        pred = loaded_model.predict(sample)
+        return pred
 
 
 def main():
@@ -396,7 +406,24 @@ def main():
     """Model training"""
 
     training.getModels(X, Y)
-    
+
+
+    """Testing on one sample"""    
+    # filtered_X = base.apply_all(preprocess.filter_band,X)
+    # scaled_X = preprocess.standard_scalar(filtered_X)
+
+    # Example for coiflets, bands, and PD: 
+    # data = base.get_subject(10,-1, scaled_X)
+    # sample = feature.coiflets(data).reshape(1, -1)
+    # model = "coif_svm"
+    # print(training.test(sample, model))
+
+    # Example for PCA :
+    # pca = feature.calcPCA(X)
+    # print(pca.shape)
+    # sample = base.get_subject(10,1, pca).reshape(1, -1)
+    # model = "PCA_svm"
+    # print(training.test(sample, model))
 
 
 if __name__ == "__main__":

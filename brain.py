@@ -53,6 +53,31 @@ class base:
 
         return X,Y
 
+    def get_subject(subject, attack):
+        # subject is int 0-105
+        # attack = -1 for real data, else 0-5
+
+        # if we want to use data as a parameter: 
+        # attackStart = 1271 # 106 * 12 - 1
+        # if(attack == -1):
+        #     # each subject in the real data has 12 rows
+        #     # 4 sets of 30 sec intervals * 3 samples
+        #     return data[subject * 12] # return the first 30 sec of the first sample
+        # else:
+        #     # each attack has 106 subjects * 1 set of 30 sec of data * 3 samples
+        #     return data[attackStart + attack*106 + subject*3]
+
+        if(attack==-1):
+            input_data = loadmat('Dataset1.mat') #dict_keys(['__header__', '__version__', '__globals__', 'Raw_Data', 'Sampling_Rate'])
+            input_data = input_data['Raw_Data']
+        else:
+            input_data = loadmat('sampleAttack.mat')#dict_keys(['__header__', '__version__', '__globals__', 'attackVectors'])
+            input_data = input_data['attackVectors']
+            input_data = input_data[attack, :, :, :]
+
+        return input_data[subject, 0, :4800]
+        
+
     def accuracy(y_pred, y_true):
         from sklearn.metrics import accuracy_score
         return accuracy_score(y_true, y_pred)
@@ -124,7 +149,9 @@ class preprocess:
 
     def standard_scalar(data):
         scaler = StandardScaler()
-        return scaler.fit_transform(data)
+        scaled = scaler.fit_transform(data)
+        pickle.dump(scaler, open('scaler.pkl','wb'))
+        return scaled
 
 class feature:
     #5 features
@@ -224,17 +251,14 @@ class feature:
     def calcPCA(data):
         pca = PCA(n_components=20) #top 20 features
         X_pca = pca.fit_transform(data)
+        pickle.dump(pca, open('pca.pkl','wb'))
         return X_pca
 
-<<<<<<< HEAD
-    # http://wavelets.pybytes.com/family/coif/
-=======
     def coiflets(data):
         #https://pywavelets.readthedocs.io/en/0.2.2/ref/dwt-discrete-wavelet-transform.html
         #approximation (cA) and detail (cD) coefficients
         ca, cd = pywt.dwt(data, 'coif1')
         return ca
->>>>>>> fae0a892333184a273bac57aa4e5c01d17415eff
 
 class model:
     def logReg(X_train, X_test, y_train, y_test):
@@ -319,9 +343,6 @@ class training:
             pickle.dump(logReg, open(feature + '_svm.pkl', 'wb'))
             pickle.dump(logReg, open(feature + '_knn.pkl', 'wb'))
 
-
-
-
     def getModels(X, Y, save=False):
         """"Preprocessing"""
         #Filter data within 0.1 - 60Hz
@@ -364,8 +385,13 @@ class training:
         training.trainModels(pca, Y, "PCA", save)
 
         #For Coiflet Family
-        coif = feature.coiflets(X)
+        coif = feature.coiflets(scaled_X)
         training.trainModels(coif, Y, "coif", save)
+
+    def test(sample, name):
+        loaded_model = pickle.load(open(name + '.pkl', 'rb'))
+        pred = loaded_model.predict(sample)
+        return pred
 
 
 def main():
@@ -393,10 +419,29 @@ def main():
     print(X.shape)
     print(Y.shape)
 
+    # pca2 = feature.calcPCA(X)
+
     """Model training"""
 
-    training.getModels(X, Y)
+    # training.getModels(X, Y)
+
+    """Testing on one sample"""    
     
+    # Example for coiflets, bands, and PD: 
+    sc = pickle.load(open('scaler.pkl','rb'))
+    data = base.get_subject(10,-1)
+    filtered = preprocess.filter_band(data)
+    scaled_X = sc.transform(filtered.reshape(1, -1))
+    sample = feature.coiflets(scaled_X)
+    model = "coif_svm"
+    print(training.test(sample, model))
+
+    # Example for PCA :
+    pca = pickle.load(open('pca.pkl','rb'))
+    data = base.get_subject(10,1).reshape(1, -1)
+    sample = pca.transform(data)
+    model = "PCA_svm"
+    print(training.test(sample, model))
 
 
 if __name__ == "__main__":

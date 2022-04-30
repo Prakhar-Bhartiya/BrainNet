@@ -3,7 +3,7 @@
 
  #Libraries
 from __future__ import print_function, division
-from scipy.io import loadmat
+from scipy.io import loadmat, savemat
 import numpy as np
 
 import sklearn as sk
@@ -38,7 +38,7 @@ from keras import losses
 import tensorflow as tf
 
 import warnings
-import timeit
+import time
 
 from torch import conv1d
 warnings.filterwarnings('ignore')
@@ -65,15 +65,13 @@ class base:
         input_ = base.segment_data(input_data,segment_time)
         attack_ = base.segment_data(attack_data,segment_time)
 
-        print(input_.shape)
-
         X = np.concatenate((input_,attack_))
 
         #print(X.shape)
 
         Y = np.concatenate((np.zeros(input_.shape[0]),np.ones(attack_.shape[0]))) #normal = 0, attack = 1
 
-        return X,Y, input_
+        return X,Y
 
     def accuracy(y_pred, y_true):
         from sklearn.metrics import accuracy_score
@@ -406,7 +404,7 @@ def main():
     print("Attack data shape: ", attack_data.shape)
 
     #Combine all data
-    X,Y, adv_train = base.form_data(input_data,attack_data)
+    X,Y = base.form_data(input_data,attack_data)
 
     print("X Shape %s ", X.shape)
     print("^ Shape %s", Y.shape)
@@ -416,41 +414,54 @@ def main():
     #training.getModels(X, Y)
 
     """GAN training"""
-    #start = timeit.timeit()
-    #gan = GAN()
-    #gan.train(epochs=128*2, adv_train=X, batch_size=5, sample_interval=200)
-    #end = timeit.timeit()
-    #print("Time elapsed for generating GAN: ", (end - start))
+
+    start = time.time()
+    gan = GAN()
+    gan.train(epochs=128*2, adv_train=X, batch_size=5, sample_interval=200)
+    end = time.time()
+    print("Time elapsed for generating GAN: ", (end - start))
+
     """VAE training"""
-    #start = timeit.timeit()
-    #encoder = buildEncoder()
-    #decoder = buildDecoder(latent_dim = 2)
+
+    start = time.time()
+    encoder = buildEncoder()
+    decoder = buildDecoder(latent_dim = 2)
     # need to split train and test data: 70, 30
-    #x_train = np.concatenate((X[0:890], X[1272:2608]))
-    #y_train = np.concatenate((Y[0:890], Y[1272:2608]))
-    #x_test = np.concatenate((X[890:1272], X[2608:]))
-    #trainVAE(encoder, decoder, x_train, x_test, y_train)
-    #end = timeit.timeit()
-    #print("Time elapsed for generating VAE: ", (end - start))
+    x_train = np.concatenate((X[0:890], X[1272:2608]))
+    y_train = np.concatenate((Y[0:890], Y[1272:2608]))
+    x_test = np.concatenate((X[890:1272], X[2608:]))
+    trainVAE(encoder, decoder, x_train, x_test, y_train)
+    end = time.time()
+    print("Time elapsed for generating VAE: ", (end - start))
+
     """Generate Signal with GAN and VAE"""
-    #exit()
+
     gan = load_model("./GANSavedModel")
     vaeencoder = load_model("./VAEEncoderSavedModel")
     vaedecoder = load_model("./VAEDecoderSavedModel")
-    #start = timeit.timeit()
+    start = time.time()
     noise = np.random.normal(0, 1, (1, 10000))
     attack_vector1 = gan.predict(noise)
-    #end = timeit.timeit()
-    #print("Time elapsed for generating attack vector with GAN: ", (end - start))
-    #attack_vector2 = vaeencoder.predict(0)
-    #Generation range near x: -10 to 0 y: -12 to -5
-    #start = timeit.timeit()
-    attack_vector2 = vaedecoder.predict(np.array([[-5, -6]]))
-    #end = timeit.timeit()
-    #print("Time elapsed for generating attack vector with VAE: ", (end - start))
-    print(attack_vector2.shape)
-    print(attack_vector1.shape)
-    #vaeencoder.z_sample = np.array([[0, 0]])
+    end = time.time()
+    print("Time elapsed for generating attack vector with GAN: ", (end - start))
+
+    #Generation range near x: see attachment
+    start = time.time()
+    attack_vector2 = vaedecoder.predict(np.array([[-10, -10]]))
+    end = time.time()
+    print("Time elapsed for generating attack vector with VAE: ", (end - start))
+
+    attack_vector1 = attack_vector1[0,:,0]
+    attack_vector2 = attack_vector2[0,:,0]
+    obj_array = np.zeros((2,4800))
+
+    for av in range(4800):
+        obj_array[0][av] = attack_vector1[av]
+        obj_array[1][av] = attack_vector2[av]
+    savemat("./GeneratedAttackVector.mat", mdict={'attackVectors': obj_array})
+    #attack_data2 = loadmat('GeneratedAttackVector.mat')
+    #attack_data2 = attack_data2['attackVectors']
+    #print(attack_data2.shape)
     
 # Adapted from https://towardsdatascience.com/gan-by-example-using-keras-on-tensorflow-backend-1a6d515a60d0
 # and https://github.com/eriklindernoren/Keras-GAN/blob/master/gan/gan.py
@@ -523,7 +534,7 @@ class GAN():
         model.add(Dense(np.prod(self.img_shape), activation='softsign'))
         model.add(Reshape(self.img_shape))
 
-        model.summary()
+        #model.summary()
 
         noise = Input(shape=(self.latent_dim,))
         img = model(noise)
@@ -542,7 +553,7 @@ class GAN():
         model.add(LeakyReLU(alpha=0.2))
         model.add(Dropout(0.4))
         model.add(Dense(1, activation='sigmoid'))
-        model.summary()
+        #model.summary()
 
         img = Input(shape=self.img_shape)
         validity = model(img)
@@ -553,21 +564,21 @@ class GAN():
 
         # Load the dataset
         X_train = adv_train
-        print(X_train.shape)
-        print(X_train[0][0])
-        print(type(X_train[0][0]))
+        #print(X_train.shape)
+        #print(X_train[0][0])
+        #print(type(X_train[0][0]))
 
         # Rescale -1 to 1
         max = np.absolute(np.max(X_train))
         min = np.absolute(np.min(X_train))
-        print(max)
-        print(min)
+        #print(max)
+        #print(min)
         max = np.max([np.absolute(np.max(X_train)), np.absolute(np.min(X_train))])
         X_train = X_train / (max/2)
-        print(X_train.shape)
-        print(X_train[0][0])
+        #print(X_train.shape)
+        #print(X_train[0][0])
         X_train = np.expand_dims(X_train, axis=2)
-        print(X_train.shape)
+        #print(X_train.shape)
 
         # Adversarial ground truths
         valid = np.zeros((batch_size, 1))
@@ -606,9 +617,9 @@ class GAN():
             g_loss = self.combined.train_on_batch(noise, valid)
 
             # Plot the progress
-            print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+            #print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
 
-        save_model(self.generator, "./GANSavedModel", overwrite= True)
+        #save_model(self.generator, "./GANSavedModel", overwrite= True)
 
 # Adapted from https://keras.io/examples/generative/vae/
 class VAE(Model):
@@ -631,10 +642,9 @@ class VAE(Model):
     def train_step(self, data):
         with GradientTape() as tape:
             z_mean, z_log_var, z = self.encoder(data)
-            print("data shape: %s", data.shape)
-            print("z: %s", z)
+
             reconstruction = self.decoder(z)
-            print("reconstruction shape: %s", reconstruction.shape)
+
             reconstruction_loss = tf.reduce_mean(
                 #tf.reduce_sum(
                     losses.binary_crossentropy(data, reconstruction)#, axis=(1, 2)
@@ -687,7 +697,7 @@ def buildEncoder():
     z_log_var = Dense(latent_dim, name="z_log_var")(x)
     z = Sampling()([z_mean, z_log_var])
     encoder = Model(encoder_inputs, [z_mean, z_log_var, z], name="encoder")
-    encoder.summary()
+    #encoder.summary()
     return encoder
 
 def buildDecoder(latent_dim):
@@ -698,7 +708,7 @@ def buildDecoder(latent_dim):
     x = Dense(np.prod((4800,1)), activation='sigmoid')(x)
     decoder_outputs = Reshape((4800,1))(x)#Dense(1, activation="sigmoid")(x)
     decoder = Model(latent_inputs, decoder_outputs, name="decoder")
-    decoder.summary()
+    #decoder.summary()
     return decoder
 
 def trainVAE(encoder, decoder, x_train, x_test, y_train):
@@ -709,8 +719,8 @@ def trainVAE(encoder, decoder, x_train, x_test, y_train):
     vae.compile(optimizer=adam_v2.Adam())
     vae.fit(data_resized, epochs=1, batch_size=5)
     plot_label_clusters(vae, x_train, y_train)
-    save_model(vae.encoder, "./VAEEncoderSavedModel", overwrite=True)
-    save_model(vae.decoder, "./VAEDecoderSavedModel", overwrite=True)
+    #save_model(vae.encoder, "./VAEEncoderSavedModel", overwrite=True)
+    #save_model(vae.decoder, "./VAEDecoderSavedModel", overwrite=True)
 
 
 

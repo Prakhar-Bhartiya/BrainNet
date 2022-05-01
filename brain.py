@@ -486,7 +486,9 @@ class training:
 
         return logReg, kmeans, svm, knn
 
-
+    def getSubandRun(userID, attackID, feat):
+        y_pred = training.runSample(base.get_subject(userID,attackID), feat)
+        return y_pred
 
 def main():
 
@@ -527,6 +529,7 @@ def main():
     # print(training.runSample(base.get_subject(0,1), 'alpha'))
     # sample from generated data
     # print(training.runSample(base.get_subject(0,6), 'alpha'))
+    print(training.getSubandRun(0, -1, 'alpha'))
 
 
 

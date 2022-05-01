@@ -860,8 +860,7 @@ def trainVAE(encoder, decoder, x_train, x_test, y_train):
     # sample from generated data
     # print(training.runSample(base.get_subject(0,6), 'alpha'))
 
-    #THIS ONE
-    # print(training.getSubandRun(0, -1, 'alpha'))
+    print(training.getSubandRun(0, -1, 'alpha'))
 
 
 

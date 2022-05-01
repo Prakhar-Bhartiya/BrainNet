@@ -73,6 +73,38 @@ class base:
 
         return X,Y
 
+    def get_subject(subject, attack):
+        # subject is int 0-105
+        # attack = -1 for real data, else 0-5
+
+        # if we want to use data as a parameter: 
+        # attackStart = 1271 # 106 * 12 - 1
+        # if(attack == -1):
+        #     # each subject in the real data has 12 rows
+        #     # 4 sets of 30 sec intervals * 3 samples
+        #     return data[subject * 12] # return the first 30 sec of the first sample
+        # else:
+        #     # each attack has 106 subjects * 1 set of 30 sec of data * 3 samples
+        #     return data[attackStart + attack*106 + subject*3]
+
+        if(attack==-1):
+            input_data = loadmat('Dataset1.mat') #dict_keys(['header', 'version', 'globals', 'Raw_Data', 'Sampling_Rate'])
+            input_data = input_data['Raw_Data']
+            data = input_data[subject, 0, :4800]
+        elif(attack < 6):
+            input_data = loadmat('sampleAttack.mat')#dict_keys(['header', 'version', 'globals', 'attackVectors'])
+            input_data = input_data['attackVectors']
+            input_data = input_data[attack, :, :, :]
+            data = input_data[subject, 0, :4800]
+        else:
+            input_data = loadmat('GeneratedAttackVector.mat')
+            input_data = input_data['attackVectors']
+            data = input_data[attack - 6]
+
+        return data
+
+        
+
     def accuracy(y_pred, y_true):
         from sklearn.metrics import accuracy_score
         return accuracy_score(y_true, y_pred)
@@ -144,7 +176,9 @@ class preprocess:
 
     def standard_scalar(data):
         scaler = StandardScaler()
-        return scaler.fit_transform(data)
+        scaled = scaler.fit_transform(data)
+        pickle.dump(scaler, open('scaler.pkl','wb'))
+        return scaled
 
 class feature:
     #5 features
@@ -244,6 +278,7 @@ class feature:
     def calcPCA(data):
         pca = PCA(n_components=20) #top 20 features
         X_pca = pca.fit_transform(data)
+        pickle.dump(pca, open('pca.pkl','wb'))
         return X_pca
 
     def coiflets(data):
@@ -335,9 +370,6 @@ class training:
             pickle.dump(logReg, open(feature + '_svm.pkl', 'wb'))
             pickle.dump(logReg, open(feature + '_knn.pkl', 'wb'))
 
-
-
-
     def getModels(X, Y, save=False):
         """"Preprocessing"""
         #Filter data within 0.1 - 60Hz
@@ -380,9 +412,103 @@ class training:
         training.trainModels(pca, Y, "PCA", save)
 
         #For Coiflet Family
-        coif = feature.coiflets(X)
+        coif = feature.coiflets(scaled_X)
         training.trainModels(coif, Y, "coif", save)
 
+    def test(sample, name):
+        loaded_model = pickle.load(open(name + '.pkl', 'rb'))
+        pred = loaded_model.predict(sample)
+        return pred
+
+    def runSample(data, feat='PCA'):
+        # subject 0-105
+        # attack -1-5
+        # feat: 'PCA', 'alpha', 'beta', 'delta', 'PD', 'coif'
+        # if(data==[]):
+        #     data = base.get_subject(subject,attack)
+        if(feat == 'PCA'):
+            pca = pickle.load(open('pca.pkl','rb'))
+            # data = base.get_subject(subject,attack).reshape(1, -1)
+            data = data.reshape(1,-1)
+            sample = pca.transform(data)
+        else:
+            sc = pickle.load(open('scaler.pkl','rb'))
+            # data = base.get_subject(subject,attack)
+            filtered = preprocess.filter_band(data)
+            scaled_X = sc.transform(filtered.reshape(1, -1)).reshape(4800, )
+            if(feat == 'alpha'):
+                sample = feature.alpha_band(scaled_X).reshape(1, -1)
+            if(feat == 'delta'):
+                sample = feature.delta_band(scaled_X).reshape(1, -1)
+            if(feat == 'beta'):
+                sample = feature.beta_band(scaled_X).reshape(1, -1)
+            if(feat == 'PD'):
+                sample = feature.power_spectral_density(scaled_X).reshape(1, -1)
+            if(feat == 'coif'):
+                sample = feature.coiflets(scaled_X).reshape(1, -1)
+
+        y_pred1 = training.test(sample, feat+"_logReg")[0]
+        y_pred2 = training.test(sample, feat+"_kmeans")[0]
+        y_pred3 = training.test(sample, feat+"_svm")[0]
+        y_pred4 = training.test(sample, feat+"_knn")[0]
+
+        return y_pred1, y_pred2, y_pred3, y_pred4
+    
+    def runMultiple(data, feat, Y):
+        logReg = []
+        kmeans = []
+        svm = []
+        knn = []
+        for i in range(data.shape[0]):
+            lr1, km1, svm1, knn1 = training.runSample(data[i])
+            logReg.append(lr1)
+            kmeans.append(km1)
+            svm.append(svm1)
+            knn.append(knn1)
+
+        print("Log Reg: ")
+        print("==========================================================")
+        print("Accuracy: ",base.accuracy(logReg, Y))
+        print("Report")
+        print("----------------------------------------------------------")
+        base.report(logReg, Y)
+        print("----------------------------------------------------------")
+
+        print("\n")
+
+        print("K-Means: ")
+        print("==========================================================")
+        print("Accuracy: ",base.accuracy(kmeans, Y))
+        print("Report")
+        print("----------------------------------------------------------")
+        base.report(kmeans, Y)
+        print("----------------------------------------------------------")
+
+        print("\n")
+
+        print("SVM: ")
+        print("==========================================================")
+        print("Accuracy: ",base.accuracy(svm, Y))
+        print("Report")
+        print("----------------------------------------------------------")
+        base.report(svm, Y)
+        print("----------------------------------------------------------")
+
+        print("\n")
+
+        print("KNN: ")
+        print("==========================================================")
+        print("Accuracy: ",base.accuracy(knn, Y))
+        print("Report")
+        print("----------------------------------------------------------")
+        base.report(knn, Y)
+        print("----------------------------------------------------------")
+
+        return logReg, kmeans, svm, knn
+
+    def getSubandRun(userID, attackID, feat):
+        y_pred = training.runSample(base.get_subject(userID,attackID), feat)
+        return y_pred
 
 def main():
 
@@ -408,6 +534,10 @@ def main():
 
     print("X Shape %s ", X.shape)
     print("^ Shape %s", Y.shape)
+
+    """ Generated Attacks """
+    g_attack = loadmat('GeneratedAttackVector.mat')
+    g_attack = g_attack['attackVectors']
 
     """Model training"""
 
@@ -721,6 +851,18 @@ def trainVAE(encoder, decoder, x_train, x_test, y_train):
     plot_label_clusters(vae, x_train, y_train)
     #save_model(vae.encoder, "./VAEEncoderSavedModel", overwrite=True)
     #save_model(vae.decoder, "./VAEDecoderSavedModel", overwrite=True)
+    # training.getModels(X, Y)
+
+    """Testing on one sample"""    
+
+    # sample from provided data
+    # print(training.runSample(base.get_subject(0,1), 'alpha'))
+    # sample from generated data
+    # print(training.runSample(base.get_subject(0,6), 'alpha'))
+
+    #THIS ONE
+    # print(training.getSubandRun(0, -1, 'alpha'))
+
 
 
 

@@ -532,8 +532,6 @@ def main():
     #Combine all data
     X,Y = base.form_data(input_data,attack_data)
 
-    print("X Shape %s ", X.shape)
-    print("^ Shape %s", Y.shape)
 
     """ Generated Attacks """
     g_attack = loadmat('GeneratedAttackVector.mat')

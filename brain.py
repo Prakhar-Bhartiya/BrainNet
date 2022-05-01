@@ -539,7 +539,7 @@ def main():
 
     """Model training"""
 
-    #training.getModels(X, Y)
+    training.getModels(X, Y)
 
     """GAN training"""
 

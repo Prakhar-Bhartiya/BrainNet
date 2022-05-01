@@ -68,14 +68,21 @@ class base:
         #     return data[attackStart + attack*106 + subject*3]
 
         if(attack==-1):
-            input_data = loadmat('Dataset1.mat') #dict_keys(['__header__', '__version__', '__globals__', 'Raw_Data', 'Sampling_Rate'])
+            input_data = loadmat('Dataset1.mat') #dict_keys(['header', 'version', 'globals', 'Raw_Data', 'Sampling_Rate'])
             input_data = input_data['Raw_Data']
-        else:
-            input_data = loadmat('sampleAttack.mat')#dict_keys(['__header__', '__version__', '__globals__', 'attackVectors'])
+            data = input_data[subject, 0, :4800]
+        elif(attack < 6):
+            input_data = loadmat('sampleAttack.mat')#dict_keys(['header', 'version', 'globals', 'attackVectors'])
             input_data = input_data['attackVectors']
             input_data = input_data[attack, :, :, :]
+            data = input_data[subject, 0, :4800]
+        else:
+            input_data = loadmat('GeneratedAttackVector.mat')
+            input_data = input_data['attackVectors']
+            data = input_data[attack - 6]
 
-        return input_data[subject, 0, :4800]
+        return data
+
         
 
     def accuracy(y_pred, y_true):
@@ -393,15 +400,16 @@ class training:
         pred = loaded_model.predict(sample)
         return pred
 
-    def runSample(subject=0, attack=-1, feat='PCA', data = []):
+    def runSample(data, feat='PCA'):
         # subject 0-105
         # attack -1-5
         # feat: 'PCA', 'alpha', 'beta', 'delta', 'PD', 'coif'
-        if(data==[]):
-            data = base.get_subject(subject,attack)
+        # if(data==[]):
+        #     data = base.get_subject(subject,attack)
         if(feat == 'PCA'):
             pca = pickle.load(open('pca.pkl','rb'))
-            data = data.reshape(1, -1)
+            # data = base.get_subject(subject,attack).reshape(1, -1)
+            data = data.reshape(1,-1)
             sample = pca.transform(data)
         else:
             sc = pickle.load(open('scaler.pkl','rb'))
@@ -425,6 +433,58 @@ class training:
         y_pred4 = training.test(sample, feat+"_knn")[0]
 
         return y_pred1, y_pred2, y_pred3, y_pred4
+    
+    def runMultiple(data, feat, Y):
+        logReg = []
+        kmeans = []
+        svm = []
+        knn = []
+        for i in range(data.shape[0]):
+            lr1, km1, svm1, knn1 = training.runSample(data[i])
+            logReg.append(lr1)
+            kmeans.append(km1)
+            svm.append(svm1)
+            knn.append(knn1)
+
+        print("Log Reg: ")
+        print("==========================================================")
+        print("Accuracy: ",base.accuracy(logReg, Y))
+        print("Report")
+        print("----------------------------------------------------------")
+        base.report(logReg, Y)
+        print("----------------------------------------------------------")
+
+        print("\n")
+
+        print("K-Means: ")
+        print("==========================================================")
+        print("Accuracy: ",base.accuracy(kmeans, Y))
+        print("Report")
+        print("----------------------------------------------------------")
+        base.report(kmeans, Y)
+        print("----------------------------------------------------------")
+
+        print("\n")
+
+        print("SVM: ")
+        print("==========================================================")
+        print("Accuracy: ",base.accuracy(svm, Y))
+        print("Report")
+        print("----------------------------------------------------------")
+        base.report(svm, Y)
+        print("----------------------------------------------------------")
+
+        print("\n")
+
+        print("KNN: ")
+        print("==========================================================")
+        print("Accuracy: ",base.accuracy(knn, Y))
+        print("Report")
+        print("----------------------------------------------------------")
+        base.report(knn, Y)
+        print("----------------------------------------------------------")
+
+        return logReg, kmeans, svm, knn
 
 
 
@@ -464,9 +524,11 @@ def main():
     """Testing on one sample"""    
 
     # sample from provided data
-    print(training.runSample(0,-1, 'alpha'))
+    # print(training.runSample(base.get_subject(0,1), 'alpha'))
     # sample from generated data
-    print(training.runSample(feat='alpha', data=g_attack[0]))
+    # print(training.runSample(base.get_subject(0,6), 'alpha'))
+
+
 
 
 if __name__ == "__main__":

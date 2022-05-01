@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="attack_array">
-        <item>-------</item>
+        <item>No Attack</item>
         <item>GAN</item>
-        <item>VAN</item>
+        <item>VAE</item>
         <item>Attack Data 0</item>
         <item>Attack Data 1</item>
         <item>Attack Data 2</item>

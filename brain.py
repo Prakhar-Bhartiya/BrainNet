@@ -846,7 +846,7 @@ def trainVAE(encoder, decoder, x_train, x_test, y_train):
     vae = VAE(encoder, decoder)
     vae.compile(optimizer=adam_v2.Adam())
     vae.fit(data_resized, epochs=1, batch_size=5)
-    plot_label_clusters(vae, x_train, y_train)
+    #plot_label_clusters(vae, x_train, y_train)
     #save_model(vae.encoder, "./VAEEncoderSavedModel", overwrite=True)
     #save_model(vae.decoder, "./VAEDecoderSavedModel", overwrite=True)
     # training.getModels(X, Y)

@@ -55,17 +55,7 @@ class base:
 
     def get_subject(subject, attack):
         # subject is int 0-105
-        # attack = -1 for real data, else 0-5
-
-        # if we want to use data as a parameter: 
-        # attackStart = 1271 # 106 * 12 - 1
-        # if(attack == -1):
-        #     # each subject in the real data has 12 rows
-        #     # 4 sets of 30 sec intervals * 3 samples
-        #     return data[subject * 12] # return the first 30 sec of the first sample
-        # else:
-        #     # each attack has 106 subjects * 1 set of 30 sec of data * 3 samples
-        #     return data[attackStart + attack*106 + subject*3]
+        # attack = -1 for real data, else 0-7
 
         if(attack==-1):
             input_data = loadmat('Dataset1.mat') #dict_keys(['header', 'version', 'globals', 'Raw_Data', 'Sampling_Rate'])
@@ -82,8 +72,6 @@ class base:
             data = input_data[attack - 6]
 
         return data
-
-        
 
     def accuracy(y_pred, y_true):
         from sklearn.metrics import accuracy_score
@@ -531,6 +519,7 @@ def main():
     # print(training.runSample(base.get_subject(0,6), 'alpha'))
     print(training.getSubandRun(0, -1, 'alpha'))
 
+    training.runMultiple(X, "coif", Y)
 
 
 

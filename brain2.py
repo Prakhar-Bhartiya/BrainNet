@@ -206,4 +206,4 @@ def getSubandRun(userID, attackID, feat):
   y_pred = runSample(get_subject(userID,attackID), feat)
   return y_pred
 
-print(getSubandRun(0, -1, 'alpha'))
+print(getSubandRun(0, -1, 'coif'))

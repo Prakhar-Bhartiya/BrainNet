@@ -193,7 +193,7 @@ class preprocess:
         return scaled
 
 class feature:
-    #5 features
+    #6 features
     sampling_freq = 165.0
 
     """
@@ -354,6 +354,8 @@ class model:
 
 class training:
     def trainModels(X, Y, feature, save=False):
+        # feat: 'PCA', 'alpha', 'beta', 'delta', 'PD', 'coif'
+        # Trains all four models on a given feature on given data
         print("\n***********************************   ", feature, "   ***********************************\n")
         # Split data
         X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.30, random_state=42)
@@ -406,7 +408,42 @@ class training:
             pickle.dump(logReg, open(feature + '_svm.pkl', 'wb'))
             pickle.dump(logReg, open(feature + '_knn.pkl', 'wb'))
 
+    def trainFeature(feat):
+        # feat: 'PCA', 'alpha', 'beta', 'delta', 'PD', 'coif'
+        # Trains and saves a 4 models on a single feature
+        input_data = loadmat('Dataset1.mat') #dict_keys(['__header__', '__version__', '__globals__', 'Raw_Data', 'Sampling_Rate'])
+        attack_data = loadmat('sampleAttack.mat')#dict_keys(['__header__', '__version__', '__globals__', 'attackVectors'])
+
+        #loading data
+        input_data = input_data['Raw_Data']
+        attack_data = attack_data['attackVectors']
+
+        #Combine all data
+        X,Y = base.form_data(input_data,attack_data)
+
+        if(feat == 'PCA'):
+            X = feature.calcPCA(X)
+        else:
+            #Filter data within 0.1 - 60Hz
+            filtered_X = base.apply_all(preprocess.filter_band,X)
+            #Scalar around means
+            scaled_X = preprocess.standard_scalar(filtered_X)
+            if(feat == 'alpha'):
+                X = base.apply_all(feature.alpha_band, scaled_X)
+            if(feat == 'delta'):
+                X  = base.apply_all(feature.beta_band, scaled_X)
+            if(feat == 'beta'):
+                X  = base.apply_all(feature.delta_band, scaled_X)
+            if(feat == 'PD'):
+                X  = base.apply_all(feature.power_spectral_density, scaled_X)
+            if(feat == 'coif'):
+                X = feature.coiflets(scaled_X)
+
+        training.trainModels(X, Y, feat, True)
+    
     def getModels(X, Y, save=False):
+        # Trains all models on all features
+
         """"Preprocessing"""
         #Filter data within 0.1 - 60Hz
         filtered_X = base.apply_all(preprocess.filter_band,X)
@@ -452,11 +489,13 @@ class training:
         training.trainModels(coif, Y, "coif", save)
 
     def test(sample, name):
+        # test a single sample on a single model
         loaded_model = pickle.load(open(name + '.pkl', 'rb'))
         pred = loaded_model.predict(sample)
         return pred
 
     def runSample(data, feat='PCA'):
+        # run a single sample
         # subject 0-105
         # attack -1-5
         # feat: 'PCA', 'alpha', 'beta', 'delta', 'PD', 'coif'
@@ -491,6 +530,8 @@ class training:
         return y_pred1, y_pred2, y_pred3, y_pred4
     
     def runMultiple(data, feat, Y):
+        # feat: 'PCA', 'alpha', 'beta', 'delta', 'PD', 'coif'
+        # tests a set of data
         logReg = []
         kmeans = []
         svm = []
@@ -541,11 +582,12 @@ class training:
         return logRegResults + kMResults + svmResults + knnResults
 
     def getSubandRun(userID, attackID, feat):
+        # single function to test a sample (for app)
         y_pred = training.runSample(base.get_subject(userID,attackID), feat)
         return y_pred
 
-    def getMultandRun(userID, feat):
-        X, Y = base.get_multiple(userID)
+    def getMultandRun(userLow, userHigh, feat):
+        X, Y = base.get_multiple(userLow, userHigh)
         results = training.runMultiple(X, feat, Y)
         return results
 

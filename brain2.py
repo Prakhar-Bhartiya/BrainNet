@@ -23,6 +23,98 @@ import pywt # pip insyall PyWavelets
 import warnings
 warnings.filterwarnings('ignore')
 
+def segment_data(input_data, seg_time=30):
+  # 30 seconds
+  segment_points = seg_time * 160 #sampling freq
+  splited_data =np.asarray(np.split(input_data.flatten(), segment_points)).T
+
+  return splited_data
+
+def form_data(input_data,attack_data):
+  segment_time = 30 #window = 30seconds
+  input_ = segment_data(input_data,segment_time)
+  attack_ = segment_data(attack_data,segment_time)
+
+  X = np.concatenate((input_,attack_))
+
+  #print(X.shape)
+
+  Y = np.concatenate((np.zeros(input_.shape[0]),np.ones(attack_.shape[0]))) #normal = 0, attack = 1
+
+  return X,Y
+
+def get_multiple(subLow, subHigh):
+  input_data = loadmat('Dataset1.mat') #dict_keys(['header', 'version', 'globals', 'Raw_Data', 'Sampling_Rate'])
+  input_data = input_data['Raw_Data']
+  input_data = input_data[subLow:subHigh, :, :]
+
+  attack_data = loadmat('sampleAttack.mat')#dict_keys(['header', 'version', 'globals', 'attackVectors'])
+  attack_data = attack_data['attackVectors']
+  attack_data = attack_data[:, subLow:subHigh, :, :]
+
+  return form_data(input_data, attack_data)
+
+
+def accuracy(y_pred, y_true):
+  from sklearn.metrics import accuracy_score
+  return accuracy_score(y_true, y_pred)
+
+def report(y_pred, y_true):
+  from sklearn.metrics import confusion_matrix
+  TN, FP, FN, TP = confusion_matrix(y_true, y_pred).ravel()
+
+  #https://en.wikipedia.org/wiki/Confusion_matrix
+
+  #senstivity | recall | hit_rate | True_positive_rate
+  TPR = TP/(TP+FN)
+
+  #specificity | selectivity | True_negative_rate
+  TNR = TN/(TN+FP)
+
+  #precision | Positive_predective_value
+  precision = TP/(TP+FP)
+
+  #Miss_rate | False_negative_rate | false_reject_rate
+  FNR = FN/(FN+TP)
+
+  #Fall_out | False_positive_rate | false_accept_Rate
+  FPR = FP/(FP+TN)
+
+  #accuracy
+  ACC = (TP+TN)/(TP+TN+FP+FN)
+
+  #error_rate
+  ERROR = (FP+FN)/(TP+TN+FP+FN)
+
+  #F1-score
+  F1 = 2*TP / (2*TP + FP + FN)
+
+  #http://publications.idiap.ch/downloads/reports/2005/bengio_2005_icml.pdf
+  #half_total_error_rate
+  HTER = (FPR+FNR)/2
+
+  results = ""
+  results += "TPR: " + str(TPR)
+  results += "\nTNR: " + str(TNR)
+  results += "\nprecison: " + str(precision)
+  results += "\nFNR: " + str(FNR)
+  results += "\nFPR: " + str(FPR)
+  results += "\nACC: " + str(ACC)
+  results += "\nERROR: " + str(ERROR)
+  results += "\nF1: " + str(F1)
+  results += "\nHTER: " + str(HTER)
+
+  # print("TPR: ",TPR)
+  # print("TNR: ",TNR)
+  # print("precision: ",precision)
+  # print("FNR: ",FNR)
+  # print("FPR: ",FPR)
+  # print("ACC: ",ACC)
+  # print("ERROR: ",ERROR)
+  # print("F1: ",F1)
+  # print("HTER: ",HTER)
+  return results
+
 def get_subject(subject, attack):
 
   if(attack==-1):
@@ -202,8 +294,53 @@ def runSample(data, feat='PCA'):
 
   return y_pred1, y_pred2, y_pred3, y_pred4
 
+def runMultiple(data, feat, Y):
+  logReg = []
+  kmeans = []
+  svm = []
+  knn = []
+  for i in range(data.shape[0]):
+      lr1, km1, svm1, knn1 = runSample(data[i], feat)
+      logReg.append(lr1)
+      kmeans.append(km1)
+      svm.append(svm1)
+      knn.append(knn1)
+
+  logRegResults = ""
+  logRegResults += "Log Reg: \n"
+  logRegResults += "==========================================================\n"
+  logRegResults += "Accuracy: " + str(accuracy(logReg, Y)) + "\n"
+  logRegResults += report(logReg, Y)
+  logRegResults += "\n----------------------------------------------------------\n"
+
+  kMResults = ""
+  kMResults += "\nK-Means: \n"
+  kMResults += "==========================================================\n"
+  kMResults += "Accuracy: " + str(accuracy(kmeans, Y)) + "\n"
+  kMResults += report(kmeans, Y)
+  kMResults += "\n----------------------------------------------------------\n"
+
+  svmResults = ""
+  svmResults += "\nSVM: \n"
+  svmResults += "==========================================================\n"
+  svmResults += "Accuracy: " + str(accuracy(svm, Y)) + "\n"
+  svmResults += report(svm, Y)
+  svmResults += "\n----------------------------------------------------------\n"
+
+  knnResults = ""
+  knnResults += "\nKNN: \n"
+  knnResults += "==========================================================\n"
+  knnResults += "Accuracy: " + str(accuracy(knn, Y)) + "\n"
+  knnResults += report(knn, Y)
+  knnResults += "\n----------------------------------------------------------\n"
+
+  return logRegResults + kMResults + svmResults + knnResults
+
 def getSubandRun(userID, attackID, feat):
   y_pred = runSample(get_subject(userID,attackID), feat)
   return y_pred
 
-print(getSubandRun(0, -1, 'coif'))
+def getMultandRun(userLow, userHigh, feat):
+  X, Y = get_multiple(userLow, userHigh)
+  results = runMultiple(X, feat, Y)
+  return results

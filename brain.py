@@ -24,23 +24,23 @@ from scipy import signal
 import pickle
 import pywt # pip insyall PyWavelets
 
-from keras.datasets import mnist
-from keras.layers import Input, Dense, Reshape, Flatten, Dropout, Conv2DTranspose, Layer, ReLU
-from keras.layers import BatchNormalization, Activation, ZeroPadding2D
-from keras.layers.advanced_activations import LeakyReLU
-from keras.layers.convolutional import UpSampling2D, Conv2D
-from keras.models import Sequential, Model, save_model, load_model
-from keras.optimizers import adam_v2
-from keras.optimizers import rmsprop_v2
-from keras.metrics import Mean
-from tensorflow import GradientTape
-from keras import losses
-import tensorflow as tf
+# from keras.datasets import mnist
+# from keras.layers import Input, Dense, Reshape, Flatten, Dropout, Conv2DTranspose, Layer, ReLU
+# from keras.layers import BatchNormalization, Activation, ZeroPadding2D
+# from keras.layers.advanced_activations import LeakyReLU
+# from keras.layers.convolutional import UpSampling2D, Conv2D
+# from keras.models import Sequential, Model, save_model, load_model
+# from keras.optimizers import adam_v2
+# from keras.optimizers import rmsprop_v2
+# from keras.metrics import Mean
+# from tensorflow import GradientTape
+# from keras import losses
+# import tensorflow as tf
 
 import warnings
 import time
 
-from torch import conv1d
+# from torch import conv1d
 warnings.filterwarnings('ignore')
 
 class base:
@@ -93,6 +93,18 @@ class base:
 
         return data
 
+    def get_multiple(subLow, subHigh):
+        input_data = loadmat('Dataset1.mat') #dict_keys(['header', 'version', 'globals', 'Raw_Data', 'Sampling_Rate'])
+        input_data = input_data['Raw_Data']
+        input_data = input_data[subLow:subHigh, :, :]
+
+        attack_data = loadmat('sampleAttack.mat')#dict_keys(['header', 'version', 'globals', 'attackVectors'])
+        attack_data = attack_data['attackVectors']
+        attack_data = attack_data[:, subLow:subHigh, :, :]
+
+        return base.form_data(input_data, attack_data)
+
+
     def accuracy(y_pred, y_true):
         from sklearn.metrics import accuracy_score
         return accuracy_score(y_true, y_pred)
@@ -131,15 +143,27 @@ class base:
         #half_total_error_rate
         HTER = (FPR+FNR)/2
 
-        print("TPR: ",TPR)
-        print("TNR: ",TNR)
-        print("precision: ",precision)
-        print("FNR: ",FNR)
-        print("FPR: ",FPR)
-        print("ACC: ",ACC)
-        print("ERROR: ",ERROR)
-        print("F1: ",F1)
-        print("HTER: ",HTER)
+        results = ""
+        results += "TPR: " + str(TPR)
+        results += "\nTNR: " + str(TNR)
+        results += "\nprecison: " + str(precision)
+        results += "\nFNR: " + str(FNR)
+        results += "\nFPR: " + str(FPR)
+        results += "\nACC: " + str(ACC)
+        results += "\nERROR: " + str(ERROR)
+        results += "\nF1: " + str(F1)
+        results += "\nHTER: " + str(HTER)
+
+        # print("TPR: ",TPR)
+        # print("TNR: ",TNR)
+        # print("precision: ",precision)
+        # print("FNR: ",FNR)
+        # print("FPR: ",FPR)
+        # print("ACC: ",ACC)
+        # print("ERROR: ",ERROR)
+        # print("F1: ",F1)
+        # print("HTER: ",HTER)
+        return results
 
 class preprocess:
 
@@ -277,31 +301,55 @@ class feature:
 
 class model:
     def logReg(X_train, X_test, y_train, y_test):
+        strain = time.time()
         logReg = LogisticRegression().fit(X_train,y_train)
+        etrain = time.time()
         y_pred = logReg.predict(X_test)
-        # logTest = logReg.score(X_test, y_test)
+        etest = time.time()
+
+        print("Logistic Regression Training Time: ", etrain-strain)
+        print("Logistic Regression Testing Time: ", etest-etrain)
+
         return logReg, y_pred
+
     def kMeans(X_train, X_test, y_train, y_test):
+        strain = time.time()
         kmeans = KMeans(init="k-means++", n_clusters=2, n_init=10, max_iter=300)
         kmeans.fit(X_train)
-        #labels1 = kmeans.labels_
+        etrain = time.time()
         y_pred = kmeans.predict(X_test)
         alter_y_pred = 1-y_pred
         if base.accuracy(y_test,y_pred) < base.accuracy(y_test, alter_y_pred):
             y_pred = alter_y_pred
+        etest = time.time()
+
+        print("K-Means Training Time: ", etrain-strain)
+        print("K-Means Testing Time: ", etest-etrain)
 
         return kmeans, y_pred
-    def SVM(X_train, X_test, y_train, y_test):
 
+    def SVM(X_train, X_test, y_train, y_test):
+        strain = time.time()
         svm = LinearSVC(max_iter=30000).fit(X_train,y_train)
+        etrain = time.time()
         y_pred = svm.predict(X_test)
-        #svmTest = svm.score(X_test, y_test)
+        etest = time.time()
+        
+        print("SVM Training Time: ", etrain-strain)
+        print("SVM Testing Time: ", etest-etrain)
+
         return svm, y_pred
 
     def KNN(X_train, X_test, y_train, y_test):
+        strain = time.time()
         knn = KNeighborsClassifier() #Euclidean distance
         knn.fit(X_train, y_train)
+        etrain = time.time()
         y_pred = knn.predict(X_test)
+        etest = time.time()
+        print("KNN Training Time: ", etrain-strain)
+        print("KNN Testing Time: ", etest-etrain)
+
         return knn, y_pred
 
 class training:
@@ -316,7 +364,7 @@ class training:
         print("Accuracy: ",base.accuracy(y_pred, y_test))
         print("Report")
         print("----------------------------------------------------------")
-        base.report(y_pred, y_test)
+        print(base.report(y_pred, y_test))
         print("----------------------------------------------------------")
 
         print("\n")
@@ -327,18 +375,18 @@ class training:
         print("Accuracy: ",base.accuracy(y_pred, y_test))
         print("Report")
         print("----------------------------------------------------------")
-        base.report(y_pred, y_test)
+        print(base.report(y_pred, y_test))
         print("----------------------------------------------------------")
 
         print("\n")
 
-        svm, y_pred = model.SVM(X_train, X_test, y_train, y_test)
         print("SVM: ")
+        svm, y_pred = model.SVM(X_train, X_test, y_train, y_test)
         print("==========================================================")
         print("Accuracy: ",base.accuracy(y_pred, y_test))
         print("Report")
         print("----------------------------------------------------------")
-        base.report(y_pred, y_test)
+        print(base.report(y_pred, y_test))
         print("----------------------------------------------------------")
 
         print("\n")
@@ -349,7 +397,7 @@ class training:
         print("Accuracy: ",base.accuracy(y_pred, y_test))
         print("Report")
         print("----------------------------------------------------------")
-        base.report(y_pred, y_test)
+        print(base.report(y_pred, y_test))
         print("----------------------------------------------------------")
 
         if(save):
@@ -448,55 +496,58 @@ class training:
         svm = []
         knn = []
         for i in range(data.shape[0]):
-            lr1, km1, svm1, knn1 = training.runSample(data[i])
+            lr1, km1, svm1, knn1 = training.runSample(data[i], feat)
             logReg.append(lr1)
             kmeans.append(km1)
             svm.append(svm1)
             knn.append(knn1)
 
-        print("Log Reg: ")
-        print("==========================================================")
-        print("Accuracy: ",base.accuracy(logReg, Y))
-        print("Report")
-        print("----------------------------------------------------------")
-        base.report(logReg, Y)
-        print("----------------------------------------------------------")
+        logRegResults = ""
+        logRegResults += "Log Reg: \n"
+        logRegResults += "==========================================================\n"
+        logRegResults += "Accuracy: " + str(base.accuracy(logReg, Y)) + "\n"
+        logRegResults += base.report(logReg, Y)
+        logRegResults += "\n----------------------------------------------------------\n"
 
-        print("\n")
+        print(logRegResults)
 
-        print("K-Means: ")
-        print("==========================================================")
-        print("Accuracy: ",base.accuracy(kmeans, Y))
-        print("Report")
-        print("----------------------------------------------------------")
-        base.report(kmeans, Y)
-        print("----------------------------------------------------------")
+        kMResults = ""
+        kMResults += "\nK-Means: \n"
+        kMResults += "==========================================================\n"
+        kMResults += "Accuracy: " + str(base.accuracy(kmeans, Y)) + "\n"
+        kMResults += base.report(kmeans, Y)
+        kMResults += "\n----------------------------------------------------------\n"
 
-        print("\n")
+        print(kMResults)
 
-        print("SVM: ")
-        print("==========================================================")
-        print("Accuracy: ",base.accuracy(svm, Y))
-        print("Report")
-        print("----------------------------------------------------------")
-        base.report(svm, Y)
-        print("----------------------------------------------------------")
+        svmResults = ""
+        svmResults += "\nSVM: \n"
+        svmResults += "==========================================================\n"
+        svmResults += "Accuracy: " + str(base.accuracy(svm, Y)) + "\n"
+        svmResults += base.report(svm, Y)
+        svmResults += "\n----------------------------------------------------------\n"
+        
+        print(svmResults)
 
-        print("\n")
+        knnResults = ""
+        knnResults += "\nKNN: \n"
+        knnResults += "==========================================================\n"
+        knnResults += "Accuracy: " + str(base.accuracy(knn, Y)) + "\n"
+        knnResults += base.report(knn, Y)
+        knnResults += "\n----------------------------------------------------------\n"
 
-        print("KNN: ")
-        print("==========================================================")
-        print("Accuracy: ",base.accuracy(knn, Y))
-        print("Report")
-        print("----------------------------------------------------------")
-        base.report(knn, Y)
-        print("----------------------------------------------------------")
+        print(knnResults)
 
-        return logReg, kmeans, svm, knn
+        return logRegResults + kMResults + svmResults + knnResults
 
     def getSubandRun(userID, attackID, feat):
         y_pred = training.runSample(base.get_subject(userID,attackID), feat)
         return y_pred
+
+    def getMultandRun(userID, feat):
+        X, Y = base.get_multiple(userID)
+        results = training.runMultiple(X, feat, Y)
+        return results
 
 def main():
 
@@ -511,11 +562,11 @@ def main():
 
     #matrix of 106*3*19200 == > 106 subjects, 3 times of 2 min per subject,
     #160 Hz sampling rate. (19200 = 120 s * 160 hz) 160 samples per second
-    print("Input data shape: ", input_data.shape)
+    # print("Input data shape: ", input_data.shape)
 
     #matrix of 106*3*19200 == > 6 attack types | 106 subjects | 3 times | 30 sec per subject,
     #160 Hz sampling rate. (4800 = 30 s * 160 hz) 160 samples per second
-    print("Attack data shape: ", attack_data.shape)
+    # print("Attack data shape: ", attack_data.shape)
 
     #Combine all data
     X,Y = base.form_data(input_data,attack_data)
@@ -575,9 +626,9 @@ def main():
         obj_array[0][av] = attack_vector1[av]
         obj_array[1][av] = attack_vector2[av]
     savemat("./GeneratedAttackVector.mat", mdict={'attackVectors': obj_array})
-    #attack_data2 = loadmat('GeneratedAttackVector.mat')
-    #attack_data2 = attack_data2['attackVectors']
-    #print(attack_data2.shape)
+    attack_data2 = loadmat('GeneratedAttackVector.mat')
+    attack_data2 = attack_data2['attackVectors']
+    print(attack_data2.shape)
     
 # Adapted from https://towardsdatascience.com/gan-by-example-using-keras-on-tensorflow-backend-1a6d515a60d0
 # and https://github.com/eriklindernoren/Keras-GAN/blob/master/gan/gan.py

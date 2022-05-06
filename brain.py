@@ -533,8 +533,8 @@ def main():
     #Combine all data
     X,Y = base.form_data(input_data,attack_data)
 
-    #generate_attack_mat(X,Y)
-    #exit()
+    generate_attack_mat(X,Y)
+    exit()
 
     """ Generated Attacks """
     g_attack = loadmat('GeneratedAttackVector.mat')
@@ -874,7 +874,7 @@ def trainVAE(encoder, decoder, x_train, x_test, y_train):
 
 def generate_attack_mat(X,Y):
     obj_array = np.zeros((2,4800))
-    if not (os.path.isfile("./VAEEncoderSavedModel/saved_model.pb")):
+    if os.path.isfile("./VAEEncoderSavedModel/saved_model.pb"):
         gan = load_model("./GANSavedModel")
         encoder = load_model("./VAEEncoderSavedModel")
         decoder = load_model("./VAEDecoderSavedModel")

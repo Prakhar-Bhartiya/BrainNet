@@ -5,9 +5,11 @@ import androidx.core.app.ActivityCompat;
 
 import android.Manifest;
 import android.content.Context;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
@@ -15,14 +17,8 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
-import android.widget.TextView;
+import android.widget.Toast;
 
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-
-import com.android.volley.toolbox.Volley;
 import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
@@ -30,9 +26,13 @@ import com.chaquo.python.android.AndroidPlatform;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 
 public class MainActivity extends AppCompatActivity {
 
@@ -48,13 +48,23 @@ public class MainActivity extends AppCompatActivity {
             appDir.mkdirs();
         }
 
+        if(!new File(appDir, "Dataset1.mat").exists()) {
+            Toast.makeText(this, "Dataset1.mat does not exist.", Toast.LENGTH_LONG).show();
+            try {
+                wait(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.exit(0);
+        }
+
         //starts python
         if(!Python.isStarted()) {
             Python.start(new AndroidPlatform(this));
         }
 
         Python py = Python.getInstance();
-        PyObject brainModule = py.getModule("brain");
+        PyObject brainModule = py.getModule("android");
 
         //Connect ui to code
         Button btnFetchUsers = findViewById(R.id.btnFetchUsers);
@@ -64,12 +74,6 @@ public class MainActivity extends AppCompatActivity {
         Spinner featuresSpinner = findViewById(R.id.spinnerFeatures);
         Spinner attackSpinner = findViewById(R.id.spinnerAttack);
         EditText editTextUserSelect = findViewById(R.id.editTextUsers);
-        TextView model1Out = findViewById(R.id.textViewModel1);
-        TextView model2Out = findViewById(R.id.textViewModel2);
-        TextView model3Out = findViewById(R.id.textViewModel3);
-        TextView model4Out = findViewById(R.id.textViewModel4);
-        TextView predictionOut = findViewById(R.id.textViewDecision);
-        TextView truthOut = findViewById(R.id.textViewTruth);
 
         //No submitting empty data
         btnFetchAttack.setEnabled(false);
@@ -81,10 +85,8 @@ public class MainActivity extends AppCompatActivity {
         final String[] feature = {""}; //selected feature string
         final int[] userBounds = {-2, -1}; //lower and upper use bounds
         final int[] attack = {-1}; //chosen attack -1 => no attack
-        final String[] modelNames = {"logReg", "kmeans", "svm", "knn", "scaler"};
+        final String[] modelNames = {"logReg", "kmeans", "svm", "knn", "scaler", "pca"};
         final boolean[] truthValue = new boolean[1]; //truth value determined by attack selected
-
-        RequestQueue requestQueue = Volley.newRequestQueue(MainActivity.this);
 
         editTextUserSelect.addTextChangedListener(new TextWatcher() {
             @Override
@@ -121,11 +123,21 @@ public class MainActivity extends AppCompatActivity {
                                         userBounds[1] = finalHigherUser;
                                         btnFetchUsers.setEnabled(false);
 
+                                        //attack is not used for aggregate predictions
+                                        btnFetchAttack.setEnabled(false);
+                                        attackSpinner.setEnabled(false);
+                                        attackSpinner.setSelection(0);
+                                        attack[0] = -1;
+
                                         //hides keyboard on submit
                                         InputMethodManager keyboard = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-                                        keyboard.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
+                                        if(keyboard.isAcceptingText()) { //close keyboard if it wasnt already closed
+                                            keyboard.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
+                                        }
 
                                         runBools[0] = true;
+                                        runBools[2] = true; //ignore attack selection
+                                        Log.d("Bools", Arrays.toString(runBools));
                                         if(runBools[0] && runBools[1] && runBools[2]) { //turn on run model button once all other are ready
                                             btnRunModels.setEnabled(true);
                                         }
@@ -147,7 +159,9 @@ public class MainActivity extends AppCompatActivity {
 
                                         //hides keyboard on submit
                                         InputMethodManager keyboard = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-                                        keyboard.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
+                                        if(keyboard.isAcceptingText()) { //close keyboard if it wasnt already closed
+                                            keyboard.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
+                                        }
 
                                         runBools[0] = true;
                                         if(runBools[0] && runBools[1] && runBools[2]) { //turn on run model button once all other are ready
@@ -215,7 +229,7 @@ public class MainActivity extends AppCompatActivity {
                         if(attack[0] != -1) {
                             //fetch attack data
                             truthValue[0] = false;
-                            String url = "http://10.0.2.2:5000/api/fetch-attack/" + attack[0]; //server post api
+                            String url = "http://10.0.2.2:5000/api/fetch-attack/" + attack[0]; //host lookback interface
                             String fileName = "";
                             if(attack[0] == 0 || attack[0] == 1) { //VAE or GAN attack
                                 fileName = "GeneratedAttackVector.mat";
@@ -224,36 +238,34 @@ public class MainActivity extends AppCompatActivity {
                             }
 
                             File file = new File(appDir, fileName);
-                            if(!file.exists()) { //fetch file if doesnt exist
+                            if(!file.exists() || file.length() == 0) { //fetch file if doesnt exist or if its empty
                                 try {
-                                    file.createNewFile();
-                                    //taken from https://stackoverflow.com/questions/50197554/is-it-possible-to-download-any-file-pdf-or-zip-using-volley-on-android
-                                    InputStreamVolleyRequest fetchAttackRequest = new InputStreamVolleyRequest(Request.Method.POST, url, new Response.Listener<byte[]>() {
-                                        @Override
-                                        public void onResponse(byte[] response) {
-                                            try {
-                                                if(response != null) {
-                                                    FileOutputStream outputStream = new FileOutputStream(file);
-                                                    outputStream.write(response);
-                                                    outputStream.close();
-
-                                                    runBools[2] = true;
-                                                    if(runBools[0] && runBools[1] && runBools[2]) { //turn on run model button once all other are ready
-                                                        btnRunModels.setEnabled(true);
-                                                    }
-                                                }
-                                            } catch (Exception e) {
-                                                e.printStackTrace();
+                                    if(!file.exists()) { //create if does not exist
+                                        file.createNewFile();
+                                    }
+                                    DownloadTask download = new DownloadTask();
+                                    download.execute(fileName, url);
+                                    try {
+                                        if(download.get()) { //model downloaded successfully
+                                            runBools[2] = true;
+                                            if(runBools[0] && runBools[1] && runBools[2]) { //turn on run model button once all other are ready
+                                                btnRunModels.setEnabled(true);
+                                            }
+                                        } else {
+                                            Log.d("Downloading Failed", file.getName());
+                                            Toast.makeText(MainActivity.this, "Failed to download " + file.getName(), Toast.LENGTH_LONG).show();
+                                            if(file.length() == 0) {
+                                                file.delete();
                                             }
                                         }
-                                    }, new Response.ErrorListener() {
-                                        @Override
-                                        public void onErrorResponse(VolleyError error) {
-                                            error.printStackTrace();
+                                    } catch(Exception e) {
+                                        Log.d("Downloading Failed", file.getName());
+                                        Toast.makeText(MainActivity.this, "Failed to download " + file.getName(), Toast.LENGTH_LONG).show();
+                                        if(file.length() == 0) {
+                                            file.delete();
                                         }
-                                    }, null);
-
-                                    requestQueue.add(fetchAttackRequest);
+                                        e.printStackTrace();
+                                    }
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
@@ -264,7 +276,6 @@ public class MainActivity extends AppCompatActivity {
                                     btnRunModels.setEnabled(true);
                                 }
                             }
-
                         } else {
                             //no attack data being used
                             truthValue[0] = true;
@@ -292,67 +303,53 @@ public class MainActivity extends AppCompatActivity {
 
                 for(int i = 0; i < modelNames.length; i++) { //fetches all files in modelNames
                     String fileName = modelNames[i] + ".pkl";
-                    String url = "http://10.0.2.2:5000/api/fetch-model/";
-                    if(i < modelNames.length - 1) {
+                    String url = "http://10.0.2.2:5000/api/fetch-model/"; //host lookback interface
+                    if(i < 4) { //number of trained models
                         url += featureTofeat(feature[0]) + "/" + modelNames[i];
                         fileName = featureTofeat(feature[0]) + "_" + fileName;
-                    } else {
+                    } else { //supporting file
                         url += "none" + "/" + modelNames[i];
                     }
 
                     File file = new File(appDir, fileName);
-                    if(!file.exists()) { //fetch file if doesnt exist
+                    if(!file.exists()  || file.length() == 0) { //fetch file if doesnt exist or if its empty
                         try {
-                            file.createNewFile();
-                            //taken from https://stackoverflow.com/questions/50197554/is-it-possible-to-download-any-file-pdf-or-zip-using-volley-on-android
-                            InputStreamVolleyRequest fetchAttackRequest = new InputStreamVolleyRequest(Request.Method.POST, url, new Response.Listener<byte[]>() {
-                                @Override
-                                public void onResponse(byte[] response) {
-                                    try {
-                                        if(response != null) {
-                                            FileOutputStream outputStream = new FileOutputStream(file);
-                                            outputStream.write(response);
-                                            outputStream.close();
+                            if(!file.exists()) { //create if does not exist
+                                file.createNewFile();
+                            }
+                            DownloadTask download = new DownloadTask();
+                            download.execute(fileName, url);
+                            try {
+                                if(download.get()) { //model downloaded successfully
+                                    modelCount[0]++; //loaded model count
 
-                                            modelCount[0]++; //loaded model count
-
-                                            //all files loaded safe to run now
-                                            if(modelCount[0] == modelNames.length) {
-                                                //calls python function
-                                                double[] output = brainModule.callAttr("getSubandRun", userBounds[0], attack[0], featureTofeat(feature[0])).toJava(double[].class);
-
-                                                btnRunModels.setEnabled(false);
-//                                                featuresSpinner.setSelection(0); //reset inputs
-//                                                attackSpinner.setSelection(0);
-//                                                editTextUserSelect.setText("");
-                                                featuresSpinner.setEnabled(true);
-                                                attackSpinner.setEnabled(true);
-                                                editTextUserSelect.setEnabled(true);
-
-                                                //UI output
-                                                model1Out.setText("LogReg: " + doubleToBoolean(output[0]));
-                                                model2Out.setText("KMeans: " + doubleToBoolean(output[1]));
-                                                model3Out.setText("SVM: " + doubleToBoolean(output[2]));
-                                                model4Out.setText("KNN: " + doubleToBoolean(output[3]));
-
-                                                truthOut.setText("Truth: " + truthValue[0]);
-                                                predictionOut.setText("Verdict: " + predict(output));
-
-                                            }
+                                    //all files loaded safe to run now
+                                    if(modelCount[0] == modelNames.length) {
+                                        if(userBounds[1] != -1) { //run mult user else run single user
+                                            //calls python function in background
+                                            runMultiple run = new runMultiple(MainActivity.this);
+                                            run.execute(String.valueOf(userBounds[0]), String.valueOf(userBounds[1]), featureTofeat(feature[0]));
+                                        } else {
+                                            //calls python function in background
+                                            runSingle run = new runSingle(MainActivity.this);
+                                            run.execute(String.valueOf(userBounds[0]), String.valueOf(attack[0]), featureTofeat(feature[0]), String.valueOf(truthValue[0]));
                                         }
-
-                                    } catch (Exception e) {
-                                        e.printStackTrace();
+                                    }
+                                } else {
+                                    Log.d("Downloading Failed", file.getName());
+                                    Toast.makeText(MainActivity.this, "Failed to download " + file.getName(), Toast.LENGTH_LONG).show();
+                                    if(file.length() == 0) {
+                                        file.delete();
                                     }
                                 }
-                            }, new Response.ErrorListener() {
-                                @Override
-                                public void onErrorResponse(VolleyError error) {
-                                    error.printStackTrace();
+                            } catch(Exception e) {
+                                Log.d("Downloading Failed", file.getName());
+                                Toast.makeText(MainActivity.this, "Failed to download " + file.getName(), Toast.LENGTH_LONG).show();
+                                if(file.length() == 0) {
+                                    file.delete();
                                 }
-                            }, null);
-
-                            requestQueue.add(fetchAttackRequest);
+                                e.printStackTrace();
+                            }
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -361,25 +358,15 @@ public class MainActivity extends AppCompatActivity {
 
                         //all files loaded safe to run now
                         if(modelCount[0] == modelNames.length) {
-                            //calls python function
-                            double[] output = brainModule.callAttr("getSubandRun", userBounds[0], attack[0], featureTofeat(feature[0])).toJava(double[].class);
-
-                            btnRunModels.setEnabled(false);
-//                                                featuresSpinner.setSelection(0); //reset inputs
-//                                                attackSpinner.setSelection(0);
-//                                                editTextUserSelect.setText("");
-                            featuresSpinner.setEnabled(true);
-                            attackSpinner.setEnabled(true);
-                            editTextUserSelect.setEnabled(true);
-
-                            //UI output
-                            model1Out.setText("LogReg: " + doubleToBoolean(output[0]));
-                            model2Out.setText("KMeans: " + doubleToBoolean(output[1]));
-                            model3Out.setText("SVM: " + doubleToBoolean(output[2]));
-                            model4Out.setText("KNN: " + doubleToBoolean(output[3]));
-
-                            truthOut.setText("Truth: " + truthValue[0]);
-                            predictionOut.setText("Verdict: " + predict(output));
+                            if(userBounds[1] != -1) { //run mult user else run single user
+                                //calls python function in background
+                                runMultiple run = new runMultiple(MainActivity.this);
+                                run.execute(String.valueOf(userBounds[0]), String.valueOf(userBounds[1]), featureTofeat(feature[0]));
+                            } else {
+                                //calls python function in background
+                                runSingle run = new runSingle(MainActivity.this);
+                                run.execute(String.valueOf(userBounds[0]), String.valueOf(attack[0]), featureTofeat(feature[0]), String.valueOf(truthValue[0]));
+                            }
                         }
                     }
                 }
@@ -388,7 +375,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //converts spinner value to python file name
-    private static String featureTofeat(String featureName) {
+    public static String featureTofeat(String featureName) {
         switch(featureName) {
             case "Coiflets DWT": {
                 return "coif";
@@ -415,12 +402,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //0 is a true prediction, 1 is a false prediction
-    private static boolean doubleToBoolean(double d) {
+    public static boolean doubleToBoolean(double d) {
         return d < 0.5;
     }
 
     //predicts by highest count ties are assumed true
-    private static boolean predict(double[] modelPredictions) {
+    public static boolean predict(double[] modelPredictions) {
         int modelTrueCount = 0, modelFalseCount = 0;
         for (double modelPrediction : modelPredictions) {
             if (doubleToBoolean(modelPrediction)) {
@@ -431,6 +418,73 @@ public class MainActivity extends AppCompatActivity {
         }
         //handles ties assumes true
         return modelTrueCount >= modelFalseCount;
+    }
+
+    public class DownloadTask extends AsyncTask<String, String, Boolean> {
+
+        @Override
+        protected Boolean doInBackground(String... strings) {
+
+            boolean success = false;
+            File appDir = new File("/sdcard/livenessApp");
+            String fileName = strings[0]; //fileName to download to
+
+            try
+            {
+                InputStream input = null;
+                try{
+
+                    URL url = new URL(strings[1]); //Server api link to download from
+                    HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+                    urlConnection.setRequestMethod("POST");
+                    urlConnection.setReadTimeout(95 * 1000);
+                    urlConnection.setConnectTimeout(95 * 1000);
+                    urlConnection.setDoInput(true);
+                    urlConnection.setRequestProperty("Accept", "application/octet-stream");
+                    urlConnection.setRequestProperty("X-Environment", "android");
+
+                    urlConnection.connect();
+                    input = urlConnection.getInputStream();
+                    OutputStream output = new FileOutputStream(new File(appDir, fileName));
+
+                    try {
+                        byte[] buffer = new byte[1024];
+                        int bytesRead = 0;
+                        while ((bytesRead = input.read(buffer, 0, buffer.length)) >= 0)
+                        {
+                            output.write(buffer, 0, bytesRead);
+
+                        }
+                        output.close();
+                        success = true;
+                        Log.d("Downloading Success", fileName);
+                    }
+                    catch (Exception exception)
+                    {
+                        Log.e("Error", String.valueOf(exception));
+                        output.close();
+                    }
+
+
+                }
+                catch (Exception exception)
+                {
+                    //Toast.makeText(getApplicationContext(), "input exception in catch....."+ exception + "", Toast.LENGTH_LONG).show();
+                    Log.e("Error", String.valueOf(exception));
+
+                }
+                finally
+                {
+                    input.close();
+                }
+            }
+            catch (Exception exception)
+            {
+                Log.e("Error", String.valueOf(exception));
+            }
+
+            return success;
+        }
     }
 
 }

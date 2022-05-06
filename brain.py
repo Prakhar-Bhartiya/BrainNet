@@ -404,9 +404,65 @@ class training:
 
         if(save):
             pickle.dump(logReg, open(feature + '_logReg.pkl', 'wb'))
-            pickle.dump(logReg, open(feature + '_kmeans.pkl', 'wb'))
-            pickle.dump(logReg, open(feature + '_svm.pkl', 'wb'))
-            pickle.dump(logReg, open(feature + '_knn.pkl', 'wb'))
+            pickle.dump(kmeans, open(feature + '_kmeans.pkl', 'wb'))
+            pickle.dump(svm, open(feature + '_svm.pkl', 'wb'))
+            pickle.dump(knn, open(feature + '_knn.pkl', 'wb'))
+
+    def trainModel(X, Y, feature, modelName, save=False):
+        # feat: 'PCA', 'alpha', 'beta', 'delta', 'PD', 'coif'
+        # Trains all four models on a given feature on given data
+        print("\n***********************************   ", feature, "   ***********************************\n")
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.30, random_state=42)
+
+        if modelName == 'logReg':
+            print("Log Reg: ")
+            logReg, y_pred = model.logReg(X_train, X_test, y_train, y_test)
+            print("==========================================================")
+            print("Accuracy: ",base.accuracy(y_pred, y_test))
+            print("Report")
+            print("----------------------------------------------------------")
+            print(base.report(y_pred, y_test))
+            print("----------------------------------------------------------")
+            if(save):
+                pickle.dump(logReg, open(feature + '_logReg.pkl', 'wb'))
+        
+        elif modelName == 'kmeans':
+            print("K-Means: ")
+            kmeans, y_pred =  model.kMeans(X_train, X_test, y_train, y_test)
+            print("==========================================================")
+            print("Accuracy: ",base.accuracy(y_pred, y_test))
+            print("Report")
+            print("----------------------------------------------------------")
+            print(base.report(y_pred, y_test))
+            print("----------------------------------------------------------")
+            if(save):
+                pickle.dump(kmeans, open(feature + '_kmeans.pkl', 'wb'))
+
+        elif modelName == 'svm':
+            print("SVM: ")
+            svm, y_pred = model.SVM(X_train, X_test, y_train, y_test)
+            print("==========================================================")
+            print("Accuracy: ",base.accuracy(y_pred, y_test))
+            print("Report")
+            print("----------------------------------------------------------")
+            print(base.report(y_pred, y_test))
+            print("----------------------------------------------------------")
+            if(save):
+                pickle.dump(svm, open(feature + '_svm.pkl', 'wb'))
+
+        elif modelName == 'knn':
+            print("KNN: ")
+            knn, y_pred = model.KNN(X_train, X_test, y_train, y_test)
+            print("==========================================================")
+            print("Accuracy: ",base.accuracy(y_pred, y_test))
+            print("Report")
+            print("----------------------------------------------------------")
+            print(base.report(y_pred, y_test))
+            print("----------------------------------------------------------")
+            if(save):
+                pickle.dump(knn, open(feature + '_knn.pkl', 'wb'))
+
 
     def trainFeature(feat):
         # feat: 'PCA', 'alpha', 'beta', 'delta', 'PD', 'coif'
@@ -440,6 +496,39 @@ class training:
                 X = feature.coiflets(scaled_X)
 
         training.trainModels(X, Y, feat, True)
+
+    def trainFeature(feat, modelName):
+        # feat: 'PCA', 'alpha', 'beta', 'delta', 'PD', 'coif'
+        # Trains and saves a 4 models on a single feature
+        input_data = loadmat('Dataset1.mat') #dict_keys(['__header__', '__version__', '__globals__', 'Raw_Data', 'Sampling_Rate'])
+        attack_data = loadmat('sampleAttack.mat')#dict_keys(['__header__', '__version__', '__globals__', 'attackVectors'])
+
+        #loading data
+        input_data = input_data['Raw_Data']
+        attack_data = attack_data['attackVectors']
+
+        #Combine all data
+        X,Y = base.form_data(input_data,attack_data)
+
+        if(feat == 'PCA'):
+            X = feature.calcPCA(X)
+        else:
+            #Filter data within 0.1 - 60Hz
+            filtered_X = base.apply_all(preprocess.filter_band,X)
+            #Scalar around means
+            scaled_X = preprocess.standard_scalar(filtered_X)
+            if(feat == 'alpha'):
+                X = base.apply_all(feature.alpha_band, scaled_X)
+            if(feat == 'delta'):
+                X  = base.apply_all(feature.beta_band, scaled_X)
+            if(feat == 'beta'):
+                X  = base.apply_all(feature.delta_band, scaled_X)
+            if(feat == 'PD'):
+                X  = base.apply_all(feature.power_spectral_density, scaled_X)
+            if(feat == 'coif'):
+                X = feature.coiflets(scaled_X)
+
+        training.trainModel(X, Y, feat, modelName, True)
     
     def getModels(X, Y, save=False):
         # Trains all models on all features
@@ -674,7 +763,7 @@ def main():
     
 # Adapted from https://towardsdatascience.com/gan-by-example-using-keras-on-tensorflow-backend-1a6d515a60d0
 # and https://github.com/eriklindernoren/Keras-GAN/blob/master/gan/gan.py
-class GAN():
+class GAN:
     def __init__(self):
         self.img_rows = 1
         self.img_cols = 4800
@@ -831,7 +920,7 @@ class GAN():
         #save_model(self.generator, "./GANSavedModel", overwrite= True)
 
 # Adapted from https://keras.io/examples/generative/vae/
-class VAE(Model):
+class VAE:
     def __init__(self, encoder, decoder, **kwargs):
         super(VAE, self).__init__(**kwargs)
         self.encoder = encoder
@@ -872,7 +961,7 @@ class VAE(Model):
             "reconstruction_loss": self.reconstruction_loss_tracker.result(),
             "kl_loss": self.kl_loss_tracker.result(),
         }
-class Sampling(Layer):
+class Sampling:
     """Uses (z_mean, z_log_var) to sample z, the vector encoding a digit."""
 
     def call(self, inputs):

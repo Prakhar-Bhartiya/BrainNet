@@ -539,28 +539,28 @@ def main():
 
     """Model training"""
 
-    #training.getModels(X, Y)
+    training.getModels(X, Y)
 
     """GAN training"""
 
-    #start = time.time()
-    #gan = GAN()
-    #gan.train(epochs=128*2, adv_train=X, batch_size=5, sample_interval=200)
-    #end = time.time()
-    #print("Time elapsed for generating GAN: ", (end - start))
+    start = time.time()
+    gan = GAN()
+    gan.train(epochs=128*2, adv_train=X, batch_size=5, sample_interval=200)
+    end = time.time()
+    print("Time elapsed for generating GAN: ", (end - start))
 
     """VAE training"""
 
-    #start = time.time()
-    #encoder = buildEncoder()
-    #decoder = buildDecoder(latent_dim = 2)
+    start = time.time()
+    encoder = buildEncoder()
+    decoder = buildDecoder(latent_dim = 2)
     # need to split train and test data: 70, 30
-    #x_train = np.concatenate((X[0:890], X[1272:2608]))
-    #y_train = np.concatenate((Y[0:890], Y[1272:2608]))
-    #x_test = np.concatenate((X[890:1272], X[2608:]))
-    #trainVAE(encoder, decoder, x_train, x_test, y_train)
-    #end = time.time()
-    #print("Time elapsed for generating VAE: ", (end - start))
+    x_train = np.concatenate((X[0:890], X[1272:2608]))
+    y_train = np.concatenate((Y[0:890], Y[1272:2608]))
+    x_test = np.concatenate((X[890:1272], X[2608:]))
+    trainVAE(encoder, decoder, x_train, x_test, y_train)
+    end = time.time()
+    print("Time elapsed for generating VAE: ", (end - start))
 
     """Generate Signal with GAN and VAE"""
 
@@ -590,11 +590,21 @@ def main():
 
     """Testing on one sample"""    
 
-    # sample from provided data
-    # print(training.runSample(base.get_subject(0,1), 'alpha'))
-    # sample from generated data
-    # print(training.runSample(base.get_subject(0,6), 'alpha'))
-
+    print("(logReg, Kmeans, SVM, KNN)")
+    print("0.0 = classified as liveness, 1.0 = classified as fake")
+    print("feature extraction: PCA")
+    print(training.runSample(obj_array[0], 'PCA'))
+    print("feature extraction: alpha")
+    print(training.runSample(obj_array[0], 'alpha'))
+    print("feature extraction: delta")
+    print(training.runSample(obj_array[0], 'delta'))
+    print("feature extraction: beta")
+    print(training.runSample(obj_array[0], 'beta'))
+    print("feature extraction: PD")
+    print(training.runSample(obj_array[0], 'PD'))
+    print("feature extraction: coif")
+    print(training.runSample(obj_array[0], 'coif'))
+    print("-------------------------")
     print("(logReg, Kmeans, SVM, KNN)")
     print("0.0 = classified as liveness, 1.0 = classified as fake")
     print("feature extraction: PCA")
@@ -609,6 +619,7 @@ def main():
     print(training.runSample(obj_array[1], 'PD'))
     print("feature extraction: coif")
     print(training.runSample(obj_array[1], 'coif'))
+    print("-------------------------")
 
     #attack_data2 = loadmat('GeneratedAttackVector.mat')
     #attack_data2 = attack_data2['attackVectors']
@@ -848,7 +859,7 @@ def buildDecoder(latent_dim):
 def trainVAE(encoder, decoder, x_train, x_test, y_train):
     data_resized = np.concatenate([x_train, x_test], axis=0)
     data_resized = np.expand_dims(data_resized, -1).astype("float32") / 65535
-    print("SHAPE OF DATA: %s", data_resized.shape)
+    #print("SHAPE OF DATA: %s", data_resized.shape)
     vae = VAE(encoder, decoder)
     vae.compile(optimizer=adam_v2.Adam())
     vae.fit(data_resized, epochs=1, batch_size=5)

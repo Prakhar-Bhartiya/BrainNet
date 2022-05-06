@@ -1,0 +1,31 @@
+pip install for server:
+	flask
+	sklearn
+	matplotlib
+	PyWavelets
+	keras
+	tensorflow
+	torch
+
+How to start server:
+	After installing listed packages run command Flask run
+	All .mat must be inside of the server, backups located in backupData/backupMAT
+	To save time all .pkls and .mat were packaged with the server. They can be deleted and on server startup will be created.
+	Generating the GAN/VAE generatedAttackVector.mat also outputs training times and accuracy of models
+	Server set to run on 127.0.0.1:5000
+
+How to start app:
+	The app is unbuilt to save downloading time. It takes a little while to build because it has to download the python packages.
+	To build open folder in android studio and create an android device emulator running API Level 28 (Android 9.0) and click play.
+	Copy all the backup data files into a folder at /sdcard/livenessApp, creating the livenessApp folder if it has not already been created.
+	If connecting to server not on same machine then ip address of downloadTasks must be changed.
+
+Android Emulation Downloading issue forums:
+	
+	Android emulator failed to download any file bigger than 15KB.
+
+	https://stackoverflow.com/questions/32183990/java-net-protocolexception-unexpected-end-of-stream
+
+	https://stackoverflow.com/questions/8202813/unexpected-end-of-stream-error-on-download
+
+	https://stackoverflow.com/questions/7402500/androidunexpected-end-of-stream-exception-downloading-large-files

@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity"
+    tools:layout_editor_absoluteX="14dp"
+    tools:layout_editor_absoluteY="-3dp">
+
+    <EditText
+        android:id="@+id/editTextUsers"
+        android:layout_width="209dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="20dp"
+        android:ems="10"
+        android:hint="ex. 0-105"
+        android:inputType="textPersonName"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/btnFetchUsers"
+        android:layout_width="136dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="20dp"
+        android:text="Fetch User(s)"
+        app:layout_constraintStart_toEndOf="@+id/editTextUsers"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/btnFetchAttack"
+        android:layout_width="136dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="12dp"
+        android:text="Fetch Attack"
+        app:layout_constraintStart_toEndOf="@+id/spinnerAttack"
+        app:layout_constraintTop_toBottomOf="@+id/editTextUsers" />
+
+    <Button
+        android:id="@+id/btnRunModels"
+        android:layout_width="357dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="12dp"
+        android:text="Run Models"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/spinnerFeatures" />
+
+    <Spinner
+        android:id="@+id/spinnerFeatures"
+        android:layout_width="208dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="12dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/spinnerAttack" />
+
+    <Spinner
+        android:id="@+id/spinnerAttack"
+        android:layout_width="208dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="12dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/editTextUsers" />
+
+    <Button
+        android:id="@+id/btnSelectFeature"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="12dp"
+        android:text="Select Feature"
+        app:layout_constraintStart_toEndOf="@+id/spinnerFeatures"
+        app:layout_constraintTop_toBottomOf="@+id/spinnerAttack" />
+
+    <ScrollView
+        android:id="@+id/scrollViewOutput"
+        android:layout_width="357dp"
+        android:layout_height="449dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="12dp"
+        android:fadeScrollbars="false"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/btnRunModels">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" >
+
+            <TextView
+                android:id="@+id/textViewModel1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginTop="20dp"
+                android:text="LogReg:" />
+
+            <TextView
+                android:id="@+id/textViewModel2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:text="KMeans:" />
+
+            <TextView
+                android:id="@+id/textViewModel3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:text="SVM:" />
+
+            <TextView
+                android:id="@+id/textViewModel4"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:text="KNN:" />
+
+            <TextView
+                android:id="@+id/textViewTruth"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginTop="24dp"
+                android:text="Truth: " />
+
+            <TextView
+                android:id="@+id/textViewDecision"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:text="Verdict: " />
+
+        </LinearLayout>
+    </ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -3,7 +3,7 @@
 
  #Libraries
 from __future__ import print_function, division
-from os.path import exists
+import os
 from scipy.io import loadmat, savemat
 import numpy as np
 
@@ -690,7 +690,7 @@ class training:
         return results
 
 def main():
-
+    
 
     #Read data
     input_data = loadmat('Dataset1.mat') #dict_keys(['__header__', '__version__', '__globals__', 'Raw_Data', 'Sampling_Rate'])
@@ -700,16 +700,24 @@ def main():
     input_data = input_data['Raw_Data']
     attack_data = attack_data['attackVectors']
 
+    #matrix of 106*3*19200 == > 106 subjects, 3 times of 2 min per subject,
+    #160 Hz sampling rate. (19200 = 120 s * 160 hz) 160 samples per second
+    print("Input data shape: ", input_data.shape)
+
+    #matrix of 106*3*19200 == > 6 attack types | 106 subjects | 3 times | 30 sec per subject,
+    #160 Hz sampling rate. (4800 = 30 s * 160 hz) 160 samples per second
+    print("Attack data shape: ", attack_data.shape)
+
     #Combine all data
     X,Y = base.form_data(input_data,attack_data)
 
+    """ Generated Attacks """
+    g_attack = loadmat('GeneratedAttackVector.mat')
+    g_attack = g_attack['attackVectors']
+
     """Model training"""
 
-    # training.getModels(X, Y, True)
-
-    # test examples
-    print(training.getSubandRun(10, -1, "alpha"))
-    print(training.getMultandRun(10, 20, "PD"))
+    training.getModels(X, Y)
 
     """GAN training"""
 
@@ -757,13 +765,47 @@ def main():
         obj_array[0][av] = attack_vector1[av]
         obj_array[1][av] = attack_vector2[av]
     savemat("./GeneratedAttackVector.mat", mdict={'attackVectors': obj_array})
-    attack_data2 = loadmat('GeneratedAttackVector.mat')
-    attack_data2 = attack_data2['attackVectors']
-    print(attack_data2.shape)
-    
+
+    """Testing on one sample"""    
+
+    print("(logReg, Kmeans, SVM, KNN)")
+    print("0.0 = classified as liveness, 1.0 = classified as fake")
+    print("feature extraction: PCA")
+    print(training.runSample(obj_array[0], 'PCA'))
+    print("feature extraction: alpha")
+    print(training.runSample(obj_array[0], 'alpha'))
+    print("feature extraction: delta")
+    print(training.runSample(obj_array[0], 'delta'))
+    print("feature extraction: beta")
+    print(training.runSample(obj_array[0], 'beta'))
+    print("feature extraction: PD")
+    print(training.runSample(obj_array[0], 'PD'))
+    print("feature extraction: coif")
+    print(training.runSample(obj_array[0], 'coif'))
+    print("-------------------------")
+    print("(logReg, Kmeans, SVM, KNN)")
+    print("0.0 = classified as liveness, 1.0 = classified as fake")
+    print("feature extraction: PCA")
+    print(training.runSample(obj_array[1], 'PCA'))
+    print("feature extraction: alpha")
+    print(training.runSample(obj_array[1], 'alpha'))
+    print("feature extraction: delta")
+    print(training.runSample(obj_array[1], 'delta'))
+    print("feature extraction: beta")
+    print(training.runSample(obj_array[1], 'beta'))
+    print("feature extraction: PD")
+    print(training.runSample(obj_array[1], 'PD'))
+    print("feature extraction: coif")
+    print(training.runSample(obj_array[1], 'coif'))
+    print("-------------------------")
+
+    #attack_data2 = loadmat('GeneratedAttackVector.mat')
+    #attack_data2 = attack_data2['attackVectors']
+    #print(attack_data2.shape)
+
 # Adapted from https://towardsdatascience.com/gan-by-example-using-keras-on-tensorflow-backend-1a6d515a60d0
 # and https://github.com/eriklindernoren/Keras-GAN/blob/master/gan/gan.py
-class GAN:
+class GAN():
     def __init__(self):
         self.img_rows = 1
         self.img_cols = 4800
@@ -818,16 +860,11 @@ class GAN:
         model.add(Dense(256))
         model.add(LeakyReLU(alpha=0.2))
         model.add(Dropout(0.4))
-        #model.add(BatchNormalization(momentum=0.9))
         model.add(Dense(512))
         model.add(LeakyReLU(alpha=0.2))
         model.add(Dropout(0.4))
-        #model.add(BatchNormalization(momentum=0.9))
-        model.add(Dropout(0.4))
         model.add(Dense(1024))
         model.add(LeakyReLU(alpha=0.2))
-        #model.add(Dropout(0.4))
-        #model.add(BatchNormalization(momentum=0.9))
         model.add(Dropout(0.4))
         model.add(Dense(np.prod(self.img_shape), activation='softsign'))
         model.add(Reshape(self.img_shape))
@@ -862,21 +899,12 @@ class GAN:
 
         # Load the dataset
         X_train = adv_train
-        #print(X_train.shape)
-        #print(X_train[0][0])
-        #print(type(X_train[0][0]))
-
         # Rescale -1 to 1
         max = np.absolute(np.max(X_train))
         min = np.absolute(np.min(X_train))
-        #print(max)
-        #print(min)
         max = np.max([np.absolute(np.max(X_train)), np.absolute(np.min(X_train))])
         X_train = X_train / (max/2)
-        #print(X_train.shape)
-        #print(X_train[0][0])
         X_train = np.expand_dims(X_train, axis=2)
-        #print(X_train.shape)
 
         # Adversarial ground truths
         valid = np.zeros((batch_size, 1))
@@ -888,14 +916,14 @@ class GAN:
             #  Train Discriminator
             # ---------------------
 
-            # Select a random batch of images
+            # Select a random batch of data
             idx = np.random.randint(0, X_train.shape[0], batch_size)
             imgs = X_train[idx]
             #print(idx)
 
             noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
 
-            # Generate a batch of new images
+            # Generate a batch of new data
             gen_imgs = self.generator.predict(noise)
 
             # Train the discriminator
@@ -918,9 +946,10 @@ class GAN:
             #print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
 
         #save_model(self.generator, "./GANSavedModel", overwrite= True)
+        return self.generator
 
 # Adapted from https://keras.io/examples/generative/vae/
-class VAE:
+class VAE(Model):
     def __init__(self, encoder, decoder, **kwargs):
         super(VAE, self).__init__(**kwargs)
         self.encoder = encoder
@@ -944,9 +973,7 @@ class VAE:
             reconstruction = self.decoder(z)
 
             reconstruction_loss = tf.reduce_mean(
-                #tf.reduce_sum(
-                    losses.binary_crossentropy(data, reconstruction)#, axis=(1, 2)
-                #)
+                    losses.binary_crossentropy(data, reconstruction)
             )
             kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
             kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
@@ -961,8 +988,8 @@ class VAE:
             "reconstruction_loss": self.reconstruction_loss_tracker.result(),
             "kl_loss": self.kl_loss_tracker.result(),
         }
-class Sampling:
-    """Uses (z_mean, z_log_var) to sample z, the vector encoding a digit."""
+class Sampling(Layer):
+    """Sample z with brain signal using z_log and z_mean"""
 
     def call(self, inputs):
         z_mean, z_log_var = inputs
@@ -985,12 +1012,10 @@ def buildEncoder():
     latent_dim = 2
 
     encoder_inputs = Input(shape=(4800, 1))
-    #x = Conv(32, 2, activation="relu", strides=2, padding="same")(encoder_inputs)
-    #x = conv1d(64, 2, activation="relu", strides=2, padding="same")(x)
-    x = Dense(32, activation="relu")(encoder_inputs)#ReLU()(encoder_inputs)
-    x = Dense(64, activation="relu")(x)#ReLU()(x)
+    x = Dense(32, activation="relu")(encoder_inputs)
+    x = Dense(64, activation="relu")(x)
     x = Flatten()(x)
-    x = Dense(16, activation="relu")(x)
+    x = Dense(128, activation="relu")(x)
     z_mean = Dense(latent_dim, name="z_mean")(x)
     z_log_var = Dense(latent_dim, name="z_log_var")(x)
     z = Sampling()([z_mean, z_log_var])
@@ -1001,10 +1026,10 @@ def buildEncoder():
 def buildDecoder(latent_dim):
     latent_inputs = Input(shape=(latent_dim,))
     x = Flatten()(latent_inputs)
-    x = Dense(64, activation="relu")(x)#Conv2DTranspose(64, 2, activation="relu", strides=2, padding="same")(x)
-    x = Dense(32, activation="relu")(x)#Conv2DTranspose(32, 2, activation="relu", strides=2, padding="same")(x)
+    x = Dense(64, activation="relu")(x)
+    x = Dense(32, activation="relu")(x)
     x = Dense(np.prod((4800,1)), activation='sigmoid')(x)
-    decoder_outputs = Reshape((4800,1))(x)#Dense(1, activation="sigmoid")(x)
+    decoder_outputs = Reshape((4800,1))(x)
     decoder = Model(latent_inputs, decoder_outputs, name="decoder")
     #decoder.summary()
     return decoder
@@ -1012,40 +1037,31 @@ def buildDecoder(latent_dim):
 def trainVAE(encoder, decoder, x_train, x_test, y_train):
     data_resized = np.concatenate([x_train, x_test], axis=0)
     data_resized = np.expand_dims(data_resized, -1).astype("float32") / 65535
-    print("SHAPE OF DATA: %s", data_resized.shape)
     vae = VAE(encoder, decoder)
     vae.compile(optimizer=adam_v2.Adam())
     vae.fit(data_resized, epochs=1, batch_size=5)
-    #plot_label_clusters(vae, x_train, y_train)
-    #save_model(vae.encoder, "./VAEEncoderSavedModel", overwrite=True)
-    #save_model(vae.decoder, "./VAEDecoderSavedModel", overwrite=True)
-    # training.getModels(X, Y)
-
-    """Testing on one sample"""    
-
-    # sample from provided data
-    # print(training.runSample(base.get_subject(0,1), 'alpha'))
-    # sample from generated data
-    # print(training.runSample(base.get_subject(0,6), 'alpha'))
-
-    print(training.getSubandRun(0, -1, 'alpha'))
-
-    training.runMultiple(X, "coif", Y)
+    return vae
 
 def generate_attack_mat():
-    input_data = loadmat('Dataset1.mat') #dict_keys(['__header__', '__version__', '__globals__', 'Raw_Data', 'Sampling_Rate'])
-    attack_data = loadmat('sampleAttack.mat')#dict_keys(['__header__', '__version__', '__globals__', 'attackVectors'])
+    input_data = loadmat('Dataset1.mat')
+    attack_data = loadmat('sampleAttack.mat')
     input_data = input_data['Raw_Data']
     attack_data = attack_data['attackVectors']
     X,Y = base.form_data(input_data,attack_data)
     obj_array = np.zeros((2,4800))
-    if (exists("./VAEEncoderSavedModel/saved_model.pb")):
+    if os.path.isfile("./VAEEncoderSavedModel/saved_model.pb"):
         gan = load_model("./GANSavedModel")
         encoder = load_model("./VAEEncoderSavedModel")
         decoder = load_model("./VAEDecoderSavedModel")
         noise = np.random.normal(0, 1, (1, 10000))
+        start = time.time()
         attack_vector1 = gan.predict(noise)
+        end = time.time()
+        print("Time elapsed for generating attack vector with GAN: ", (end - start))
+        start = time.time()
         attack_vector2 = decoder.predict(np.array([[-10, -10]]))
+        end = time.time()
+        print("Time elapsed for generating attack vector with VAE: ", (end - start))
         attack_vector1 = attack_vector1[0,:,0]
         attack_vector2 = attack_vector2[0,:,0]
 
@@ -1053,20 +1069,32 @@ def generate_attack_mat():
             obj_array[0][av] = attack_vector1[av]
             obj_array[1][av] = attack_vector2[av]
     else:
+        start = time.time()
         gan = GAN()
-        gan.train(epochs=128*2, adv_train=X, batch_size=5, sample_interval=200)
+        generator = gan.train(epochs=128*2, adv_train=X, batch_size=5, sample_interval=200)
+        end = time.time()
+        print("Time elapsed for generating GAN: ", (end - start))
+        start = time.time()
         encoder = buildEncoder()
         decoder = buildDecoder(latent_dim = 2)
         x_train = np.concatenate((X[0:890], X[1272:2608]))
         y_train = np.concatenate((Y[0:890], Y[1272:2608]))
         x_test = np.concatenate((X[890:1272], X[2608:]))
-        trainVAE(encoder, decoder, x_train, x_test, y_train)
-        save_model(encoder, "./VAEEncoderSavedModel", overwrite=True)
-        save_model(decoder, "./VAEDecoderSavedModel", overwrite=True)
+        vae = trainVAE(encoder, decoder, x_train, x_test, y_train)
+        end = time.time()
+        print("Time elapsed for generating VAE: ", (end - start))
+        save_model(vae.encoder, "./VAEEncoderSavedModel", overwrite=True)
+        save_model(vae.decoder, "./VAEDecoderSavedModel", overwrite=True)
         save_model(gan.generator, "./GANSavedModel", overwrite= True)
         noise = np.random.normal(0, 1, (1, 10000))
-        attack_vector1 = gan.predict(noise)
-        attack_vector2 = decoder.predict(np.array([[-10, -10]]))
+        start = time.time()
+        attack_vector1 = generator.predict(noise)
+        end = time.time()
+        print("Time elapsed for generating attack vector with GAN: ", (end - start))
+        start = time.time()
+        attack_vector2 = vae.decoder.predict(np.array([[-10, -10]]))
+        end = time.time()
+        print("Time elapsed for generating attack vector with VAE: ", (end - start))
         attack_vector1 = attack_vector1[0,:,0]
         attack_vector2 = attack_vector2[0,:,0]
 
@@ -1075,6 +1103,37 @@ def generate_attack_mat():
             obj_array[1][av] = attack_vector2[av]
 
     savemat("./GeneratedAttackVector.mat", mdict={'attackVectors': obj_array})
+
+    print("(logReg, Kmeans, SVM, KNN)")
+    print("0.0 = classified as liveness, 1.0 = classified as fake")
+    print("feature extraction: PCA")
+    print(training.runSample(obj_array[0], 'PCA'))
+    print("feature extraction: alpha")
+    print(training.runSample(obj_array[0], 'alpha'))
+    print("feature extraction: delta")
+    print(training.runSample(obj_array[0], 'delta'))
+    print("feature extraction: beta")
+    print(training.runSample(obj_array[0], 'beta'))
+    print("feature extraction: PD")
+    print(training.runSample(obj_array[0], 'PD'))
+    print("feature extraction: coif")
+    print(training.runSample(obj_array[0], 'coif'))
+    print("-------------------------")
+    print("(logReg, Kmeans, SVM, KNN)")
+    print("0.0 = classified as liveness, 1.0 = classified as fake")
+    print("feature extraction: PCA")
+    print(training.runSample(obj_array[1], 'PCA'))
+    print("feature extraction: alpha")
+    print(training.runSample(obj_array[1], 'alpha'))
+    print("feature extraction: delta")
+    print(training.runSample(obj_array[1], 'delta'))
+    print("feature extraction: beta")
+    print(training.runSample(obj_array[1], 'beta'))
+    print("feature extraction: PD")
+    print(training.runSample(obj_array[1], 'PD'))
+    print("feature extraction: coif")
+    print(training.runSample(obj_array[1], 'coif'))
+    print("-------------------------")
 
 if __name__ == "__main__":
     main()

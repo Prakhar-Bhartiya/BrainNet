@@ -306,6 +306,15 @@ def runMultiple(data, feat, Y):
       svm.append(svm1)
       knn.append(knn1)
 
+  #create voting model by taking majority vote
+  voting = np.add(logReg, kmeans)
+  voting = np.add(voting, svm)
+  voting = np.add(voting, knn)
+
+  voting = voting/4
+  voting = np.round_(voting, decimals = 0)
+
+
   logRegResults = ""
   logRegResults += "Log Reg: \n"
   logRegResults += "==========================================================\n"
@@ -334,7 +343,14 @@ def runMultiple(data, feat, Y):
   knnResults += report(knn, Y)
   knnResults += "\n----------------------------------------------------------\n"
 
-  return logRegResults + kMResults + svmResults + knnResults
+  votingResults = ""
+  votingResults += "\nVoting: \n"
+  votingResults += "==========================================================\n"
+  votingResults += "Accuracy: " + str(accuracy(voting, Y)) + "\n"
+  votingResults += report(voting, Y)
+  votingResults += "\n----------------------------------------------------------\n"
+
+  return logRegResults + kMResults + svmResults + knnResults + votingResults
 
 def getSubandRun(userID, attackID, feat):
   y_pred = runSample(get_subject(userID,attackID), feat)

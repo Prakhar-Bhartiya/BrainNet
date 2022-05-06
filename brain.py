@@ -880,11 +880,11 @@ def generate_attack_mat(X,Y):
         decoder = load_model("./VAEDecoderSavedModel")
         noise = np.random.normal(0, 1, (1, 10000))
         start = time.time()
-        attack_vector1 = generator.predict(noise)
+        attack_vector1 = gan.predict(noise)
         end = time.time()
         print("Time elapsed for generating attack vector with GAN: ", (end - start))
         start = time.time()
-        attack_vector2 = vae.decoder.predict(np.array([[-10, -10]]))
+        attack_vector2 = decoder.predict(np.array([[-10, -10]]))
         end = time.time()
         print("Time elapsed for generating attack vector with VAE: ", (end - start))
         attack_vector1 = attack_vector1[0,:,0]

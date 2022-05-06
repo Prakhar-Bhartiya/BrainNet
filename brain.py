@@ -24,23 +24,23 @@ from scipy import signal
 import pickle
 import pywt # pip insyall PyWavelets
 
-# from keras.datasets import mnist
-# from keras.layers import Input, Dense, Reshape, Flatten, Dropout, Conv2DTranspose, Layer, ReLU
-# from keras.layers import BatchNormalization, Activation, ZeroPadding2D
-# from keras.layers.advanced_activations import LeakyReLU
-# from keras.layers.convolutional import UpSampling2D, Conv2D
-# from keras.models import Sequential, Model, save_model, load_model
-# from keras.optimizers import adam_v2
-# from keras.optimizers import rmsprop_v2
-# from keras.metrics import Mean
-# from tensorflow import GradientTape
-# from keras import losses
-# import tensorflow as tf
+from keras.datasets import mnist
+from keras.layers import Input, Dense, Reshape, Flatten, Dropout, Conv2DTranspose, Layer, ReLU
+from keras.layers import BatchNormalization, Activation, ZeroPadding2D
+from keras.layers.advanced_activations import LeakyReLU
+from keras.layers.convolutional import UpSampling2D, Conv2D
+from keras.models import Sequential, Model, save_model, load_model
+from keras.optimizers import adam_v2
+from keras.optimizers import rmsprop_v2
+from keras.metrics import Mean
+from tensorflow import GradientTape
+from keras import losses
+import tensorflow as tf
 
 import warnings
 import time
 
-# from torch import conv1d
+from torch import conv1d
 warnings.filterwarnings('ignore')
 
 class base:
@@ -76,6 +76,7 @@ class base:
     def get_subject(subject, attack):
         # subject is int 0-105
         # attack = -1 for real data, else 0-7
+        # pulls one sample
 
         if(attack==-1):
             input_data = loadmat('Dataset1.mat') #dict_keys(['header', 'version', 'globals', 'Raw_Data', 'Sampling_Rate'])
@@ -94,6 +95,7 @@ class base:
         return data
 
     def get_multiple(subLow, subHigh):
+        #pulls range of samples, both real and attack
         input_data = loadmat('Dataset1.mat') #dict_keys(['header', 'version', 'globals', 'Raw_Data', 'Sampling_Rate'])
         input_data = input_data['Raw_Data']
         input_data = input_data[subLow:subHigh, :, :]
@@ -110,6 +112,7 @@ class base:
         return accuracy_score(y_true, y_pred)
 
     def report(y_pred, y_true):
+        #aggregate results
         from sklearn.metrics import confusion_matrix
         TN, FP, FN, TP = confusion_matrix(y_true, y_pred).ravel()
 
@@ -466,7 +469,7 @@ class training:
 
     def trainFeature(feat):
         # feat: 'PCA', 'alpha', 'beta', 'delta', 'PD', 'coif'
-        # Trains and saves a 4 models on a single feature
+        # Trains and saves all 4 models on a single feature using the provided data
         input_data = loadmat('Dataset1.mat') #dict_keys(['__header__', '__version__', '__globals__', 'Raw_Data', 'Sampling_Rate'])
         attack_data = loadmat('sampleAttack.mat')#dict_keys(['__header__', '__version__', '__globals__', 'attackVectors'])
 
@@ -584,15 +587,12 @@ class training:
         return pred
 
     def runSample(data, feat='PCA'):
-        # run a single sample
+        # run a single sample and get predicted output on all 4 models
         # subject 0-105
         # attack -1-5
         # feat: 'PCA', 'alpha', 'beta', 'delta', 'PD', 'coif'
-        # if(data==[]):
-        #     data = base.get_subject(subject,attack)
         if(feat == 'PCA'):
             pca = pickle.load(open('pca.pkl','rb'))
-            # data = base.get_subject(subject,attack).reshape(1, -1)
             data = data.reshape(1,-1)
             sample = pca.transform(data)
         else:
@@ -620,7 +620,7 @@ class training:
     
     def runMultiple(data, feat, Y):
         # feat: 'PCA', 'alpha', 'beta', 'delta', 'PD', 'coif'
-        # tests a set of data
+        # tests a set of data and returns aggregate results
         logReg = []
         kmeans = []
         svm = []
@@ -632,14 +632,20 @@ class training:
             svm.append(svm1)
             knn.append(knn1)
 
+        #create voting model by taking majority vote
+        voting = np.add(logReg, kmeans)
+        voting = np.add(voting, svm)
+        voting = np.add(voting, knn)
+
+        voting = voting/4
+        voting = np.round_(voting, decimals = 0)
+
         logRegResults = ""
         logRegResults += "Log Reg: \n"
         logRegResults += "==========================================================\n"
         logRegResults += "Accuracy: " + str(base.accuracy(logReg, Y)) + "\n"
         logRegResults += base.report(logReg, Y)
         logRegResults += "\n----------------------------------------------------------\n"
-
-        print(logRegResults)
 
         kMResults = ""
         kMResults += "\nK-Means: \n"
@@ -648,16 +654,12 @@ class training:
         kMResults += base.report(kmeans, Y)
         kMResults += "\n----------------------------------------------------------\n"
 
-        print(kMResults)
-
         svmResults = ""
         svmResults += "\nSVM: \n"
         svmResults += "==========================================================\n"
         svmResults += "Accuracy: " + str(base.accuracy(svm, Y)) + "\n"
         svmResults += base.report(svm, Y)
         svmResults += "\n----------------------------------------------------------\n"
-        
-        print(svmResults)
 
         knnResults = ""
         knnResults += "\nKNN: \n"
@@ -666,9 +668,14 @@ class training:
         knnResults += base.report(knn, Y)
         knnResults += "\n----------------------------------------------------------\n"
 
-        print(knnResults)
+        votingResults = ""
+        votingResults += "\nVoting: \n"
+        votingResults += "==========================================================\n"
+        votingResults += "Accuracy: " + str(base.accuracy(voting, Y)) + "\n"
+        votingResults += base.report(voting, Y)
+        votingResults += "\n----------------------------------------------------------\n"
 
-        return logRegResults + kMResults + svmResults + knnResults
+        return logRegResults + kMResults + svmResults + knnResults + votingResults
 
     def getSubandRun(userID, attackID, feat):
         # single function to test a sample (for app)
@@ -676,6 +683,7 @@ class training:
         return y_pred
 
     def getMultandRun(userLow, userHigh, feat):
+        # single function to test a range of data (for app)
         X, Y = base.get_multiple(userLow, userHigh)
         results = training.runMultiple(X, feat, Y)
         return results
@@ -691,25 +699,16 @@ def main():
     input_data = input_data['Raw_Data']
     attack_data = attack_data['attackVectors']
 
-    #matrix of 106*3*19200 == > 106 subjects, 3 times of 2 min per subject,
-    #160 Hz sampling rate. (19200 = 120 s * 160 hz) 160 samples per second
-    # print("Input data shape: ", input_data.shape)
-
-    #matrix of 106*3*19200 == > 6 attack types | 106 subjects | 3 times | 30 sec per subject,
-    #160 Hz sampling rate. (4800 = 30 s * 160 hz) 160 samples per second
-    # print("Attack data shape: ", attack_data.shape)
-
     #Combine all data
     X,Y = base.form_data(input_data,attack_data)
 
-
-    """ Generated Attacks """
-    g_attack = loadmat('GeneratedAttackVector.mat')
-    g_attack = g_attack['attackVectors']
-
     """Model training"""
 
-    training.getModels(X, Y)
+    # training.getModels(X, Y, True)
+
+    # test examples
+    print(training.getSubandRun(10, -1, "alpha"))
+    print(training.getMultandRun(10, 20, "PD"))
 
     """GAN training"""
 

@@ -1,6 +1,6 @@
 from os.path import exists
 from flask import Flask, send_file
-from brain import training
+from brain import generate_attack_mat, training
 app = Flask(__name__)
 
 #creates files and trains models needed by app
@@ -18,6 +18,8 @@ with app.app_context():
         training.trainFeature("alpha", "logReg")
     if not exists("pca.pkl"):
         training.trainFeature("pca", "logReg")
+    if not exists("GeneratedAttackVector.mat"):
+        generate_attack_mat()
 
 @app.route("/")
 def index():
@@ -44,6 +46,10 @@ def fetch_attack(attack_id):
     elif attack_id > 1 and attack_id < 6: #Sample Attack 
         return send_file("sampleAttack.mat", as_attachment=True, mimetype="application/octet-stream")
 
+#POST api for downloading the user data file
+@app.route("/api/fetch-user-data", methods=['POST'])
+def fetch_user_data():
+    return send_file("Dataset1.mat", as_attachment=True, mimetype="application/octet-stream")
 
 if __name__ == '__main__':
     app.run(Debug=True) 

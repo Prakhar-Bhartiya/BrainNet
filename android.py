@@ -44,11 +44,11 @@ def form_data(input_data,attack_data):
   return X,Y
 
 def get_multiple(subLow, subHigh):
-  input_data = loadmat('Dataset1.mat') #dict_keys(['header', 'version', 'globals', 'Raw_Data', 'Sampling_Rate'])
+  input_data = loadmat('/sdcard/livenessApp/Dataset1.mat') #dict_keys(['header', 'version', 'globals', 'Raw_Data', 'Sampling_Rate'])
   input_data = input_data['Raw_Data']
   input_data = input_data[subLow:subHigh, :, :]
 
-  attack_data = loadmat('sampleAttack.mat')#dict_keys(['header', 'version', 'globals', 'attackVectors'])
+  attack_data = loadmat('/sdcard/livenessApp/sampleAttack.mat')#dict_keys(['header', 'version', 'globals', 'attackVectors'])
   attack_data = attack_data['attackVectors']
   attack_data = attack_data[:, subLow:subHigh, :, :]
 
@@ -118,16 +118,16 @@ def report(y_pred, y_true):
 def get_subject(subject, attack):
 
   if(attack==-1):
-      input_data = loadmat('Dataset1.mat') #dict_keys(['header', 'version', 'globals', 'Raw_Data', 'Sampling_Rate'])
+      input_data = loadmat('/sdcard/livenessApp/Dataset1.mat') #dict_keys(['header', 'version', 'globals', 'Raw_Data', 'Sampling_Rate'])
       input_data = input_data['Raw_Data']
       data = input_data[subject, 0, :4800]
   elif(attack < 6):
-      input_data = loadmat('sampleAttack.mat')#dict_keys(['header', 'version', 'globals', 'attackVectors'])
+      input_data = loadmat('/sdcard/livenessApp/sampleAttack.mat')#dict_keys(['header', 'version', 'globals', 'attackVectors'])
       input_data = input_data['attackVectors']
       input_data = input_data[attack, :, :, :]
       data = input_data[subject, 0, :4800]
   else:
-      input_data = loadmat('GeneratedAttackVector.mat')
+      input_data = loadmat('/sdcard/livenessApp/GeneratedAttackVector.mat')
       input_data = input_data['attackVectors']
       data = input_data[attack - 6]
 
@@ -155,7 +155,7 @@ def filter_band(data):
 def standard_scalar(data):
   scaler = StandardScaler()
   scaled = scaler.fit_transform(data)
-  pickle.dump(scaler, open('scaler.pkl','wb'))
+  pickle.dump(scaler, open('/sdcard/livenessApp/scaler.pkl','wb'))
   return scaled
 
 #5 features
@@ -246,7 +246,7 @@ def power_spectral_density(data):
 def calcPCA(data):
   pca = PCA(n_components=20) #top 20 features
   X_pca = pca.fit_transform(data)
-  pickle.dump(pca, open('pca.pkl','wb'))
+  pickle.dump(pca, open('/sdcard/livenessApp/pca.pkl','wb'))
   return X_pca
 
 def coiflets(data):
@@ -256,7 +256,7 @@ def coiflets(data):
   return ca
 
 def test(sample, name):
-  loaded_model = pickle.load(open(name + '.pkl', 'rb'))
+  loaded_model = pickle.load(open('/sdcard/livenessApp/' + name + '.pkl', 'rb'))
   pred = loaded_model.predict(sample)
   return pred
 
@@ -267,12 +267,12 @@ def runSample(data, feat='PCA'):
   # if(data==[]):
   #     data = base.get_subject(subject,attack)
   if(feat == 'PCA'):
-    pca = pickle.load(open('pca.pkl','rb'))
+    pca = pickle.load(open('/sdcard/livenessApp/pca.pkl','rb'))
     # data = base.get_subject(subject,attack).reshape(1, -1)
     data = data.reshape(1,-1)
     sample = pca.transform(data)
   else:
-    sc = pickle.load(open('scaler.pkl','rb'))
+    sc = pickle.load(open('/sdcard/livenessApp/scaler.pkl','rb'))
     # data = base.get_subject(subject,attack)
     filtered = filter_band(data)
     scaled_X = sc.transform(filtered.reshape(1, -1)).reshape(4800, )
@@ -317,38 +317,38 @@ def runMultiple(data, feat, Y):
 
   logRegResults = ""
   logRegResults += "Log Reg: \n"
-  logRegResults += "==========================================================\n"
+  logRegResults += "=========================================\n"
   logRegResults += "Accuracy: " + str(accuracy(logReg, Y)) + "\n"
   logRegResults += report(logReg, Y)
-  logRegResults += "\n----------------------------------------------------------\n"
+  logRegResults += "\n=========================================\n"
 
   kMResults = ""
   kMResults += "\nK-Means: \n"
-  kMResults += "==========================================================\n"
+  kMResults += "=========================================\n"
   kMResults += "Accuracy: " + str(accuracy(kmeans, Y)) + "\n"
   kMResults += report(kmeans, Y)
-  kMResults += "\n----------------------------------------------------------\n"
+  kMResults += "\n=========================================\n"
 
   svmResults = ""
   svmResults += "\nSVM: \n"
-  svmResults += "==========================================================\n"
+  svmResults += "=========================================\n"
   svmResults += "Accuracy: " + str(accuracy(svm, Y)) + "\n"
   svmResults += report(svm, Y)
-  svmResults += "\n----------------------------------------------------------\n"
+  svmResults += "\n=========================================\n"
 
   knnResults = ""
   knnResults += "\nKNN: \n"
-  knnResults += "==========================================================\n"
+  knnResults += "=========================================\n"
   knnResults += "Accuracy: " + str(accuracy(knn, Y)) + "\n"
   knnResults += report(knn, Y)
-  knnResults += "\n----------------------------------------------------------\n"
+  knnResults += "\n=========================================\n"
 
   votingResults = ""
   votingResults += "\nVoting: \n"
-  votingResults += "==========================================================\n"
+  votingResults += "=========================================\n"
   votingResults += "Accuracy: " + str(accuracy(voting, Y)) + "\n"
   votingResults += report(voting, Y)
-  votingResults += "\n----------------------------------------------------------\n"
+  votingResults += "\n=========================================\n"
 
   return logRegResults + kMResults + svmResults + knnResults + votingResults
 

@@ -50,62 +50,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/spinnerFeatures" />
 
-    <TextView
-        android:id="@+id/textViewModel1"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
-        android:layout_marginTop="20dp"
-        android:text="LogReg:"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/btnRunModels" />
-
-    <TextView
-        android:id="@+id/textViewDecision"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
-        android:text="Verdict: "
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textViewTruth" />
-
-    <TextView
-        android:id="@+id/textViewTruth"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
-        android:layout_marginTop="24dp"
-        android:text="Truth: "
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textViewModel4" />
-
-    <TextView
-        android:id="@+id/textViewModel4"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
-        android:text="KNN:"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textViewModel3" />
-
-    <TextView
-        android:id="@+id/textViewModel3"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
-        android:text="SVM:"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textViewModel2" />
-
-    <TextView
-        android:id="@+id/textViewModel2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
-        android:text="KMeans:"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textViewModel1" />
-
     <Spinner
         android:id="@+id/spinnerFeatures"
         android:layout_width="208dp"
@@ -133,5 +77,67 @@
         android:text="Select Feature"
         app:layout_constraintStart_toEndOf="@+id/spinnerFeatures"
         app:layout_constraintTop_toBottomOf="@+id/spinnerAttack" />
+
+    <ScrollView
+        android:id="@+id/scrollViewOutput"
+        android:layout_width="357dp"
+        android:layout_height="449dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="12dp"
+        android:fadeScrollbars="false"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/btnRunModels">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" >
+
+            <TextView
+                android:id="@+id/textViewModel1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginTop="20dp"
+                android:text="LogReg:" />
+
+            <TextView
+                android:id="@+id/textViewModel2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:text="KMeans:" />
+
+            <TextView
+                android:id="@+id/textViewModel3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:text="SVM:" />
+
+            <TextView
+                android:id="@+id/textViewModel4"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:text="KNN:" />
+
+            <TextView
+                android:id="@+id/textViewTruth"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginTop="24dp"
+                android:text="Truth: " />
+
+            <TextView
+                android:id="@+id/textViewDecision"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:text="Verdict: " />
+
+        </LinearLayout>
+    </ScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

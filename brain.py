@@ -3,6 +3,7 @@
 
  #Libraries
 from __future__ import print_function, division
+from os.path import exists
 from scipy.io import loadmat, savemat
 import numpy as np
 
@@ -1031,7 +1032,47 @@ def trainVAE(encoder, decoder, x_train, x_test, y_train):
 
     training.runMultiple(X, "coif", Y)
 
+def generate_attack_mat():
+    input_data = loadmat('Dataset1.mat') #dict_keys(['__header__', '__version__', '__globals__', 'Raw_Data', 'Sampling_Rate'])
+    attack_data = loadmat('sampleAttack.mat')#dict_keys(['__header__', '__version__', '__globals__', 'attackVectors'])
+    X,Y = base.form_data(input_data,attack_data)
+    obj_array = np.zeros((2,4800))
+    if (exists("./VAEEncoderSavedModel/saved_model.pb")):
+        gan = load_model("./GANSavedModel")
+        encoder = load_model("./VAEEncoderSavedModel")
+        decoder = load_model("./VAEDecoderSavedModel")
+        noise = np.random.normal(0, 1, (1, 10000))
+        attack_vector1 = gan.predict(noise)
+        attack_vector2 = decoder.predict(np.array([[-10, -10]]))
+        attack_vector1 = attack_vector1[0,:,0]
+        attack_vector2 = attack_vector2[0,:,0]
 
+        for av in range(4800):
+            obj_array[0][av] = attack_vector1[av]
+            obj_array[1][av] = attack_vector2[av]
+    else:
+        gan = GAN()
+        gan.train(epochs=128*2, adv_train=X, batch_size=5, sample_interval=200)
+        encoder = buildEncoder()
+        decoder = buildDecoder(latent_dim = 2)
+        x_train = np.concatenate((X[0:890], X[1272:2608]))
+        y_train = np.concatenate((Y[0:890], Y[1272:2608]))
+        x_test = np.concatenate((X[890:1272], X[2608:]))
+        trainVAE(encoder, decoder, x_train, x_test, y_train)
+        save_model(encoder, "./VAEEncoderSavedModel", overwrite=True)
+        save_model(decoder, "./VAEDecoderSavedModel", overwrite=True)
+        save_model(gan.generator, "./GANSavedModel", overwrite= True)
+        noise = np.random.normal(0, 1, (1, 10000))
+        attack_vector1 = gan.predict(noise)
+        attack_vector2 = decoder.predict(np.array([[-10, -10]]))
+        attack_vector1 = attack_vector1[0,:,0]
+        attack_vector2 = attack_vector2[0,:,0]
+
+        for av in range(4800):
+            obj_array[0][av] = attack_vector1[av]
+            obj_array[1][av] = attack_vector2[av]
+
+    savemat("./GeneratedAttackVector.mat", mdict={'attackVectors': obj_array})
 
 if __name__ == "__main__":
     main()

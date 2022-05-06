@@ -14,7 +14,7 @@ public class runSingle extends AsyncTask<String, String, double[]> {
 
     PyObject brainModule = null;
     Activity context;
-    String truthValue = "";
+    Boolean truthValue;
 
     public runSingle(Activity context) {
         this.context = context;
@@ -31,7 +31,7 @@ public class runSingle extends AsyncTask<String, String, double[]> {
 
     @Override
     protected double[] doInBackground(String... strings) {
-        truthValue = strings[3];
+        truthValue = strings[3].equals("true");
         double[] output = brainModule.callAttr("getSubandRun", Integer.parseInt(strings[0]), Integer.parseInt(strings[1]), strings[2]).toJava(double[].class);
         return output;
     }
@@ -41,6 +41,8 @@ public class runSingle extends AsyncTask<String, String, double[]> {
         super.onPostExecute(output);
 
         //Inputs
+        Button btnFetchAttack = context.findViewById(R.id.btnFetchAttack);
+        Button btnSelectFeature = context.findViewById(R.id.btnSelectFeature);
         Button btnRunModels = context.findViewById(R.id.btnRunModels);
         Spinner featuresSpinner = context.findViewById(R.id.spinnerFeatures);
         Spinner attackSpinner = context.findViewById(R.id.spinnerAttack);
@@ -59,13 +61,19 @@ public class runSingle extends AsyncTask<String, String, double[]> {
         featuresSpinner.setEnabled(true);
         attackSpinner.setEnabled(true);
         editTextUserSelect.setEnabled(true);
+        featuresSpinner.setSelection(featuresSpinner.getSelectedItemPosition());
+        attackSpinner.setSelection(attackSpinner.getSelectedItemPosition());
+        editTextUserSelect.setText(editTextUserSelect.getText());
+        btnSelectFeature.setEnabled(true);
+        btnFetchAttack.setEnabled(true);
+        MainActivity.resetRunBools();
 
         //UI output
-        model1Out.setText("LogReg: " + MainActivity.doubleToBoolean(output[0]));
-        model2Out.setText("KMeans: " + MainActivity.doubleToBoolean(output[1]));
-        model3Out.setText("SVM: " + MainActivity.doubleToBoolean(output[2]));
-        model4Out.setText("KNN: " + MainActivity.doubleToBoolean(output[3]));
-        truthOut.setText("Truth: " + truthValue);
-        predictionOut.setText("Verdict: " + MainActivity.predict(output));
+        model1Out.setText("LogReg: " + MainActivity.boolToLabel(MainActivity.doubleToBoolean(output[0])));
+        model2Out.setText("KMeans: " + MainActivity.boolToLabel(MainActivity.doubleToBoolean(output[1])));
+        model3Out.setText("SVM: " + MainActivity.boolToLabel(MainActivity.doubleToBoolean(output[2])));
+        model4Out.setText("KNN: " + MainActivity.boolToLabel(MainActivity.doubleToBoolean(output[3])));
+        truthOut.setText("Truth: " + MainActivity.boolToLabel(truthValue));
+        predictionOut.setText("Verdict: " + MainActivity.boolToLabel(MainActivity.predict(output)));
     }
 }

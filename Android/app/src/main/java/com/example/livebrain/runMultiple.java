@@ -39,6 +39,8 @@ public class runMultiple extends AsyncTask<String, String, String> {
         super.onPostExecute(output);
 
         //Inputs
+        Button btnFetchAttack = context.findViewById(R.id.btnFetchAttack);
+        Button btnSelectFeature = context.findViewById(R.id.btnSelectFeature);
         Button btnRunModels = context.findViewById(R.id.btnRunModels);
         Spinner featuresSpinner = context.findViewById(R.id.spinnerFeatures);
         Spinner attackSpinner = context.findViewById(R.id.spinnerAttack);
@@ -57,6 +59,12 @@ public class runMultiple extends AsyncTask<String, String, String> {
         featuresSpinner.setEnabled(true);
         attackSpinner.setEnabled(true);
         editTextUserSelect.setEnabled(true);
+        featuresSpinner.setSelection(featuresSpinner.getSelectedItemPosition());
+        attackSpinner.setSelection(attackSpinner.getSelectedItemPosition());
+        editTextUserSelect.setText(editTextUserSelect.getText());
+        btnSelectFeature.setEnabled(true);
+        btnFetchAttack.setEnabled(true);
+        MainActivity.resetRunBools();
 
         //UI output
         model1Out.setText(output);

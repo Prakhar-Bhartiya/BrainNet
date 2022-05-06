@@ -533,6 +533,9 @@ def main():
     #Combine all data
     X,Y = base.form_data(input_data,attack_data)
 
+    #generate_attack_mat(X,Y)
+    #exit()
+
     """ Generated Attacks """
     g_attack = loadmat('GeneratedAttackVector.mat')
     g_attack = g_attack['attackVectors']
@@ -871,13 +874,19 @@ def trainVAE(encoder, decoder, x_train, x_test, y_train):
 
 def generate_attack_mat(X,Y):
     obj_array = np.zeros((2,4800))
-    if (os.path.isfile("./VAEEncoderSavedModel/saved_model.pb")):
+    if not (os.path.isfile("./VAEEncoderSavedModel/saved_model.pb")):
         gan = load_model("./GANSavedModel")
         encoder = load_model("./VAEEncoderSavedModel")
         decoder = load_model("./VAEDecoderSavedModel")
         noise = np.random.normal(0, 1, (1, 10000))
-        attack_vector1 = gan.predict(noise)
-        attack_vector2 = decoder.predict(np.array([[-10, -10]]))
+        start = time.time()
+        attack_vector1 = generator.predict(noise)
+        end = time.time()
+        print("Time elapsed for generating attack vector with GAN: ", (end - start))
+        start = time.time()
+        attack_vector2 = vae.decoder.predict(np.array([[-10, -10]]))
+        end = time.time()
+        print("Time elapsed for generating attack vector with VAE: ", (end - start))
         attack_vector1 = attack_vector1[0,:,0]
         attack_vector2 = attack_vector2[0,:,0]
 
@@ -885,20 +894,32 @@ def generate_attack_mat(X,Y):
             obj_array[0][av] = attack_vector1[av]
             obj_array[1][av] = attack_vector2[av]
     else:
+        start = time.time()
         gan = GAN()
         generator = gan.train(epochs=128*2, adv_train=X, batch_size=5, sample_interval=200)
+        end = time.time()
+        print("Time elapsed for generating GAN: ", (end - start))
+        start = time.time()
         encoder = buildEncoder()
         decoder = buildDecoder(latent_dim = 2)
         x_train = np.concatenate((X[0:890], X[1272:2608]))
         y_train = np.concatenate((Y[0:890], Y[1272:2608]))
         x_test = np.concatenate((X[890:1272], X[2608:]))
         vae = trainVAE(encoder, decoder, x_train, x_test, y_train)
+        end = time.time()
+        print("Time elapsed for generating VAE: ", (end - start))
         save_model(vae.encoder, "./VAEEncoderSavedModel", overwrite=True)
         save_model(vae.decoder, "./VAEDecoderSavedModel", overwrite=True)
         save_model(gan.generator, "./GANSavedModel", overwrite= True)
         noise = np.random.normal(0, 1, (1, 10000))
+        start = time.time()
         attack_vector1 = generator.predict(noise)
+        end = time.time()
+        print("Time elapsed for generating attack vector with GAN: ", (end - start))
+        start = time.time()
         attack_vector2 = vae.decoder.predict(np.array([[-10, -10]]))
+        end = time.time()
+        print("Time elapsed for generating attack vector with VAE: ", (end - start))
         attack_vector1 = attack_vector1[0,:,0]
         attack_vector2 = attack_vector2[0,:,0]
 
@@ -907,6 +928,36 @@ def generate_attack_mat(X,Y):
             obj_array[1][av] = attack_vector2[av]
 
     savemat("./GeneratedAttackVector.mat", mdict={'attackVectors': obj_array})
+    print("(logReg, Kmeans, SVM, KNN)")
+    print("0.0 = classified as liveness, 1.0 = classified as fake")
+    print("feature extraction: PCA")
+    print(training.runSample(obj_array[0], 'PCA'))
+    print("feature extraction: alpha")
+    print(training.runSample(obj_array[0], 'alpha'))
+    print("feature extraction: delta")
+    print(training.runSample(obj_array[0], 'delta'))
+    print("feature extraction: beta")
+    print(training.runSample(obj_array[0], 'beta'))
+    print("feature extraction: PD")
+    print(training.runSample(obj_array[0], 'PD'))
+    print("feature extraction: coif")
+    print(training.runSample(obj_array[0], 'coif'))
+    print("-------------------------")
+    print("(logReg, Kmeans, SVM, KNN)")
+    print("0.0 = classified as liveness, 1.0 = classified as fake")
+    print("feature extraction: PCA")
+    print(training.runSample(obj_array[1], 'PCA'))
+    print("feature extraction: alpha")
+    print(training.runSample(obj_array[1], 'alpha'))
+    print("feature extraction: delta")
+    print(training.runSample(obj_array[1], 'delta'))
+    print("feature extraction: beta")
+    print(training.runSample(obj_array[1], 'beta'))
+    print("feature extraction: PD")
+    print(training.runSample(obj_array[1], 'PD'))
+    print("feature extraction: coif")
+    print(training.runSample(obj_array[1], 'coif'))
+    print("-------------------------")
 
 
 if __name__ == "__main__":

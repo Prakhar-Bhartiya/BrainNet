@@ -1035,6 +1035,8 @@ def trainVAE(encoder, decoder, x_train, x_test, y_train):
 def generate_attack_mat():
     input_data = loadmat('Dataset1.mat') #dict_keys(['__header__', '__version__', '__globals__', 'Raw_Data', 'Sampling_Rate'])
     attack_data = loadmat('sampleAttack.mat')#dict_keys(['__header__', '__version__', '__globals__', 'attackVectors'])
+    input_data = input_data['Raw_Data']
+    attack_data = attack_data['attackVectors']
     X,Y = base.form_data(input_data,attack_data)
     obj_array = np.zeros((2,4800))
     if (exists("./VAEEncoderSavedModel/saved_model.pb")):

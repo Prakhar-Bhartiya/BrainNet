@@ -1,2 +1,2 @@
-# BrainNet_CSE535
+# BrainNet
 Spring'22 CSE535 - Mobile Computing - 

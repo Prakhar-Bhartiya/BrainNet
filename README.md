@@ -3,6 +3,8 @@
 
 In this project we built an android application which was able to solve the issue of biometric liveness detection from an EEG dataset.
 
+[Project Requirements](https://github.com/Prakhar-Bhartiya/BrainNet/blob/main/Biometric%20Liveness%20and%20Anomaly%20Detection%20Project%20-%20CSE%20535.pdf)
+
 Keywords —- *Mobile Computing, Machine
 Learning, EEG, sensors, Android Application, Biometric*
 
